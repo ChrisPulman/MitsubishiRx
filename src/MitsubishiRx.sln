@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33213.308
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MitsubishiRx", "MitsubishiRx\MitsubishiRx.csproj", "{5B7BE84E-DF37-42D3-8811-0D6964003EB0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		PreRelease|Any CPU = PreRelease|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5B7BE84E-DF37-42D3-8811-0D6964003EB0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B7BE84E-DF37-42D3-8811-0D6964003EB0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B7BE84E-DF37-42D3-8811-0D6964003EB0}.PreRelease|Any CPU.ActiveCfg = PreRelease|Any CPU
+		{5B7BE84E-DF37-42D3-8811-0D6964003EB0}.PreRelease|Any CPU.Build.0 = PreRelease|Any CPU
+		{5B7BE84E-DF37-42D3-8811-0D6964003EB0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B7BE84E-DF37-42D3-8811-0D6964003EB0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7E948829-FAC0-40FC-8387-DD53B0BFD9FD}
+	EndGlobalSection
+EndGlobal
