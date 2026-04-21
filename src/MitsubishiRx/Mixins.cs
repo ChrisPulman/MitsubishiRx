@@ -7,7 +7,7 @@ namespace MitsubishiRx
 {
     internal static class Mixins
     {
-        public static void SafeClose(this Socket socket)
+        public static void SafeClose(this Socket? socket)
         {
             try
             {

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <RunAnalyzers>false</RunAnalyzers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/MitsubishiRx/MitsubishiRx.csproj" />
+    <PackageReference Include="Microsoft.Reactive.Testing" Version="6.1.0" />
+    <PackageReference Include="TUnit" Version="1.*" />
+  </ItemGroup>
+</Project>

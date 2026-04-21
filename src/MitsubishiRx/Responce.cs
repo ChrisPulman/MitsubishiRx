@@ -26,7 +26,7 @@ namespace MitsubishiRx
         /// </value>
         public string Err
         {
-            get => _Err;
+            get => _Err ?? string.Empty;
             set
             {
                 _Err = value;
