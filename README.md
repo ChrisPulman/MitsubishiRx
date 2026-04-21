@@ -37,7 +37,8 @@ MitsubishiRx was refactored from a low-level socket wrapper into a protocol-awar
 
 ## Supported PLC families and how to choose settings
 
-The library now covers Mitsubishi **Ethernet and serial MC protocol paths**. Ethernet support remains the broadest and deepest implementation. Serial support is now integrated through **SerialPortRx** and currently provides the first verified reactive serial path.
+The library now covers Mitsubishi **Ethernet and serial MC protocol paths**. Ethernet support remains the broadest and deepest implementation.
+Serial support is now integrated through **SerialPortRx** and currently provides the first verified reactive serial path.
 
 ### Supported family guidance
 
@@ -1821,17 +1822,10 @@ Remote operations are target-dependent. Check:
 
 ---
 
-## Verification
-
-Validated with:
-
-```bash
-"/mnt/c/Program Files/dotnet/dotnet.exe" build src/MitsubishiRx.sln -v minimal
-"/mnt/c/Program Files/dotnet/dotnet.exe" test --project tests/MitsubishiRx.Tests/MitsubishiRx.Tests.csproj -v minimal
-```
-
----
-
 ## License
 
 MIT
+
+---
+
+**MitsubishiRx** - Empowering Industrial Automation with Reactive Technology ⚡🏭

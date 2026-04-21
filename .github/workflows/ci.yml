@@ -1,0 +1,113 @@
+name: build-test-pack-publish
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# Needed so the reusable workflow can optionally delete the temp per-OS artifacts it creates.
+permissions:
+  contents: write
+  id-token: write
+  actions: write
+
+jobs:
+  build_test_pack:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: NBGV
+        id: nbgv
+        uses: dotnet/nbgv@master
+        with:
+          setAllVars: true
+
+      - run: echo 'SemVer2=${{ steps.nbgv.outputs.SemVer2 }}'
+
+      - name: Restore
+        run: dotnet restore MitsubishiRx.slnx
+        working-directory: src
+
+      - name: Build
+        run: dotnet build MitsubishiRx.slnx -c Release --no-restore /p:ContinuousIntegrationBuild=true
+        working-directory: src
+
+      - name: Test
+        run: dotnet test --project MitsubishiRx.Tests/MitsubishiRx.Tests.csproj -c Release --no-build
+        working-directory: src
+
+      - name: Pack
+        run: dotnet pack MitsubishiRx.slnx -c Release -o artifacts /p:ContinuousIntegrationBuild=true
+        working-directory: src
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: |
+            src/artifacts/*.nupkg
+            src/artifacts/*.snupkg
+          if-no-files-found: error
+
+  publish_nuget:
+    needs: build_test_pack
+    runs-on: windows-latest
+    
+    environment:
+      name: release
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: nuget-packages
+          path: src/artifacts
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: NBGV
+        id: nbgv
+        uses: dotnet/nbgv@master
+        with:
+          setAllVars: true
+
+      - run: echo 'SemVer2=${{ steps.nbgv.outputs.SemVer2 }}'
+
+      - name: Install GitReleaseNoteGenerator
+        run: dotnet tool install -g GitReleaseNoteGenerator
+
+      - name: Generate release notes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: git-release-notes --release-version "${{ steps.nbgv.outputs.SemVer2 }}" --output-file release-notes.md
+
+      - name: Pack
+        run: dotnet pack MitsubishiRx.slnx -c Release -o artifacts /p:ContinuousIntegrationBuild=true
+        working-directory: src
+
+      - name: Publish to NuGet
+        env:
+            NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
+            SOURCE_URL: https://api.nuget.org/v3/index.json
+        run: dotnet nuget push **/*.nupkg --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ steps.nbgv.outputs.SemVer2 }}" --repo "${{ github.repository }}" --title "${{ steps.nbgv.outputs.SemVer2 }}" --notes-file release-notes.md
