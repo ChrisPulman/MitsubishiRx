@@ -3,7 +3,7 @@
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Authors>Chris Pulman</Authors>
-    <Description>A Reactive Allen Bradley PLC library</Description>
+    <Description>Reactive Mitsubishi Ethernet and serial PLC library using MC Protocol / SLMP.</Description>
     <Copyright>Copyright © https://github.com/ChrisPulman $([System.DateTime]::Now.ToString(yyyy))</Copyright>
     <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -14,13 +14,14 @@
     <Nullable>enable</Nullable>
     <PackageIcon>logo.png</PackageIcon>
     <Configurations>Debug;Release;PreRelease</Configurations>
-    <PackageReleaseNotes>Compatability with Net 6 and netstandard2.0</PackageReleaseNotes>
-    <PackageTags>Rockwell;AB;Allen;Bradley;PLC;Micrologix;Controllogix;CompactLogix;PLC-5;rx;reactive;extensions;observable;LINQ;net;netstandard</PackageTags>
+    <PackageReleaseNotes>ReactiveUI.Extensions- and SerialPortRx-based Mitsubishi PLC support across Ethernet (1E/3E/4E) and serial (1C/3C/4C) MC protocol frames.</PackageReleaseNotes>
+    <PackageTags>Mitsubishi;MELSEC;PLC;MCProtocol;SLMP;Ethernet;Serial;SerialPortRx;ReactiveUI;Rx;Observable;Reactive;IndustrialAutomation</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <EnableNETAnalyzers>True</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
 
-    <PackageProjectUrl>https://github.com/ChrisPulman/ABPlcRx</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/ChrisPulman/ABPlcRx</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/ChrisPulman/MitsubishiRx</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ChrisPulman/MitsubishiRx</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <!--https://devblogs.microsoft.com/dotnet/producing-packages-with-source-link/-->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -44,22 +45,9 @@
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)images\logo.png" Pack="true" PackagePath="\"/>
     <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="LICENSE" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="README.md" />
   </ItemGroup>
   
-  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
-    <PackageReference Include="xunit" Version="2.9.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Moq" Version="4.20.72" />
-    <PackageReference Include="coverlet.collector" Version="8.0.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
