@@ -36,6 +36,224 @@ internal static class MitsubishiSerialProtocolEncoding
         };
     }
 
+    public static byte[] EncodeWordWriteRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, IReadOnlyList<ushort> values)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(address);
+        ArgumentNullException.ThrowIfNull(values);
+        if (values.Count == 0)
+        {
+            throw new ArgumentException("At least one value must be supplied.", nameof(values));
+        }
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => Encode1CWriteRequest(options, address, values),
+            MitsubishiFrameType.ThreeC => Encode3CWriteRequest(options, address, values),
+            MitsubishiFrameType.FourC => Encode4CWriteRequest(options, address, values),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeBitReadRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, int points)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(address);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(points);
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => Encode1CRequest(options, address, points, wordUnits: false),
+            MitsubishiFrameType.ThreeC => Encode3CRequest(options, address, points, wordUnits: false),
+            MitsubishiFrameType.FourC => Encode4CRequest(options, address, points, wordUnits: false),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeBitWriteRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, IReadOnlyList<bool> values)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(address);
+        ArgumentNullException.ThrowIfNull(values);
+        if (values.Count == 0)
+        {
+            throw new ArgumentException("At least one value must be supplied.", nameof(values));
+        }
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => Encode1CBitWriteRequest(options, address, values),
+            MitsubishiFrameType.ThreeC => Encode3CBitWriteRequest(options, address, values),
+            MitsubishiFrameType.FourC => Encode4CBitWriteRequest(options, address, values),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeRandomReadRequest(MitsubishiClientOptions options, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(addresses);
+        if (addresses.Count == 0)
+        {
+            throw new ArgumentException("At least one device must be supplied.", nameof(addresses));
+        }
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial random read is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CRandomReadRequest(options, addresses),
+            MitsubishiFrameType.FourC => Encode4CRandomReadRequest(options, addresses),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeRandomWriteRequest(MitsubishiClientOptions options, IReadOnlyList<MitsubishiDeviceValue> values)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(values);
+        if (values.Count == 0)
+        {
+            throw new ArgumentException("At least one device value must be supplied.", nameof(values));
+        }
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial random write is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CRandomWriteRequest(options, values),
+            MitsubishiFrameType.FourC => Encode4CRandomWriteRequest(options, values),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeBlockReadRequest(MitsubishiClientOptions options, MitsubishiBlockRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(request);
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial block read is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CBlockReadRequest(options, request),
+            MitsubishiFrameType.FourC => Encode4CBlockReadRequest(options, request),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeBlockWriteRequest(MitsubishiClientOptions options, MitsubishiBlockRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(request);
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial block write is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CBlockWriteRequest(options, request),
+            MitsubishiFrameType.FourC => Encode4CBlockWriteRequest(options, request),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeMonitorRegistrationRequest(MitsubishiClientOptions options, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(addresses);
+        if (addresses.Count == 0)
+        {
+            throw new ArgumentException("At least one device must be supplied.", nameof(addresses));
+        }
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial monitor registration is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CMonitorRegistrationRequest(options, addresses),
+            MitsubishiFrameType.FourC => Encode4CMonitorRegistrationRequest(options, addresses),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeExecuteMonitorRequest(MitsubishiClientOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial execute monitor is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CExecuteMonitorRequest(options),
+            MitsubishiFrameType.FourC => Encode4CExecuteMonitorRequest(options),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeRemoteOperationRequest(MitsubishiClientOptions options, ushort command, bool force = true, bool clearMode = false)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial remote operation is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CRemoteOperationRequest(options, command, force, clearMode),
+            MitsubishiFrameType.FourC => Encode4CRemoteOperationRequest(options, command, force, clearMode),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeReadTypeNameRequest(MitsubishiClientOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial type-name read is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CRawRequest(options, MitsubishiCommands.ReadTypeName, 0x0000, Array.Empty<byte>()),
+            MitsubishiFrameType.FourC => Encode4CRawRequest(options, MitsubishiCommands.ReadTypeName, 0x0000, Array.Empty<byte>()),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeLoopbackRequest(MitsubishiClientOptions options, ReadOnlySpan<byte> data)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        if (data.IsEmpty)
+        {
+            throw new ArgumentException("Loopback payload must not be empty.", nameof(data));
+        }
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial loopback is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CRawRequest(options, MitsubishiCommands.LoopbackTest, 0x0000, BuildLoopbackBody(options, data)),
+            MitsubishiFrameType.FourC => Encode4CRawRequest(options, MitsubishiCommands.LoopbackTest, 0x0000, BuildLoopbackBody(options, data)),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeMemoryAccessRequest(MitsubishiClientOptions options, ushort command, ushort address, int length, ReadOnlySpan<ushort> values)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial memory / extend-unit access is not implemented in this release."),
+            MitsubishiFrameType.ThreeC => Encode3CRawRequest(options, command, 0x0000, BuildMemoryAccessBody(options, command, address, length, values)),
+            MitsubishiFrameType.FourC => Encode4CRawRequest(options, command, 0x0000, BuildMemoryAccessBody(options, command, address, length, values)),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
+    public static byte[] EncodeRawRequest(MitsubishiClientOptions options, MitsubishiRawCommandRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(request);
+
+        return options.FrameType switch
+        {
+            MitsubishiFrameType.OneC => throw new NotSupportedException("Raw serial execution is not yet implemented for 1C commands."),
+            MitsubishiFrameType.ThreeC => Encode3CRawRequest(options, request.Command, request.Subcommand, request.ResolvedBody),
+            MitsubishiFrameType.FourC => Encode4CRawRequest(options, request.Command, request.Subcommand, request.ResolvedBody),
+            _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
+        };
+    }
+
     public static Responce<byte[]> Decode(MitsubishiClientOptions options, byte[] response)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -175,13 +393,645 @@ internal static class MitsubishiSerialProtocolEncoding
         buffer.Add(Dle);
         buffer.Add(Etx);
 
-        var numberOfDataBytes = checked((ushort)(buffer.Count - 3));
+        var numberOfDataBytes = checked((ushort)(buffer.Count - 2));
         var prefix = new List<byte> { Dle, Stx };
         AppendUInt16LittleEndian(prefix, numberOfDataBytes);
         prefix.AddRange(buffer);
-        var checksum = ComputeChecksum(prefix.Skip(2));
+        var checksum = ComputeChecksum(prefix.Skip(2).Take(2 + numberOfDataBytes));
         prefix.AddRange(Encoding.ASCII.GetBytes(checksum));
         return prefix.ToArray();
+    }
+
+    private static byte[] Encode3CRandomReadRequest(MitsubishiClientOptions options, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var body = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "0403",
+            "0000",
+            FormatAsciiUInt16(checked((ushort)addresses.Count)),
+            "0000",
+            string.Concat(addresses.Select(static address => FormatDeviceAddressModern(address, address.Descriptor))));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CRandomReadRequest(MitsubishiClientOptions options, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        var serial = options.ResolvedSerial;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiRandomReadRequest(serial, addresses),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryRandomReadRequest(serial, addresses),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode3CBlockReadRequest(MitsubishiClientOptions options, MitsubishiBlockRequest request)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var body = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "0406",
+            "0000",
+            FormatBlocksAscii(request, includeValues: false));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode3CMonitorRegistrationRequest(MitsubishiClientOptions options, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var body = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "0801",
+            "0000",
+            FormatAsciiUInt16(checked((ushort)addresses.Count)),
+            "0000",
+            string.Concat(addresses.Select(static address => FormatDeviceAddressModern(address, address.Descriptor))));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CBlockReadRequest(MitsubishiClientOptions options, MitsubishiBlockRequest request)
+    {
+        var serial = options.ResolvedSerial;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiBlockReadRequest(serial, request),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryBlockReadRequest(serial, request),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode4CMonitorRegistrationRequest(MitsubishiClientOptions options, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        var serial = options.ResolvedSerial;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiMonitorRegistrationRequest(serial, addresses),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryMonitorRegistrationRequest(serial, addresses),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode1CWriteRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, IReadOnlyList<ushort> values)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var metadata = address.Descriptor;
+        var body = string.Concat(
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.PcNumber),
+            "WW",
+            FormatAsciiNibble(serial.MessageWait),
+            Format1CAddress(address, metadata),
+            FormatPointCount(values.Count),
+            FormatWordValuesAscii(values));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode1CBitWriteRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, IReadOnlyList<bool> values)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var metadata = address.Descriptor;
+        var body = string.Concat(
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.PcNumber),
+            "BW",
+            FormatAsciiNibble(serial.MessageWait),
+            Format1CAddress(address, metadata),
+            FormatPointCount(values.Count),
+            FormatBitValuesAscii(values));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode3CWriteRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, IReadOnlyList<ushort> values)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var metadata = address.Descriptor;
+        var body = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "1401",
+            "0000",
+            FormatDeviceAddressModern(address, metadata),
+            FormatAsciiUInt16(checked((ushort)values.Count)),
+            FormatWordValuesAscii(values));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode3CBitWriteRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, IReadOnlyList<bool> values)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var metadata = address.Descriptor;
+        var body = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "1401",
+            "0001",
+            FormatDeviceAddressModern(address, metadata),
+            FormatAsciiUInt16(checked((ushort)values.Count)),
+            FormatBitValuesAscii(values));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode3CRandomWriteRequest(MitsubishiClientOptions options, IReadOnlyList<MitsubishiDeviceValue> values)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var body = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "1402",
+            "0000",
+            FormatAsciiUInt16(checked((ushort)values.Count)),
+            "0000",
+            string.Concat(values.Select(static value => FormatDeviceAddressModern(value.Address, value.Address.Descriptor) + value.Value.ToString("X4", CultureInfo.InvariantCulture))));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode3CBlockWriteRequest(MitsubishiClientOptions options, MitsubishiBlockRequest request)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var body = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "1406",
+            "0000",
+            FormatBlocksAscii(request, includeValues: true));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode3CExecuteMonitorRequest(MitsubishiClientOptions options)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var body = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "0802",
+            "0000");
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode3CRemoteOperationRequest(MitsubishiClientOptions options, ushort command, bool force, bool clearMode)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var body = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            command.ToString("X4", CultureInfo.InvariantCulture),
+            "0000",
+            FormatRemoteOperationPayloadAscii(command, force, clearMode));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode3CRawRequest(MitsubishiClientOptions options, ushort command, ushort subcommand, IReadOnlyList<byte> body)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var payload = body.Count == 0 ? string.Empty : Encoding.ASCII.GetString(body.ToArray());
+        var requestBody = string.Concat(
+            FormatAsciiByte(ThreeCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            command.ToString("X4", CultureInfo.InvariantCulture),
+            subcommand.ToString("X4", CultureInfo.InvariantCulture),
+            payload);
+
+        return WrapAscii(requestBody, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CWriteRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, IReadOnlyList<ushort> values)
+    {
+        var serial = options.ResolvedSerial;
+        var metadata = address.Descriptor;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiWriteRequest(serial, address, metadata, values),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryWriteRequest(serial, address, metadata, values),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode4CBitWriteRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, IReadOnlyList<bool> values)
+    {
+        var serial = options.ResolvedSerial;
+        var metadata = address.Descriptor;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiBitWriteRequest(serial, address, metadata, values),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryBitWriteRequest(serial, address, metadata, values),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode4CRandomWriteRequest(MitsubishiClientOptions options, IReadOnlyList<MitsubishiDeviceValue> values)
+    {
+        var serial = options.ResolvedSerial;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiRandomWriteRequest(serial, values),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryRandomWriteRequest(serial, values),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode4CBlockWriteRequest(MitsubishiClientOptions options, MitsubishiBlockRequest request)
+    {
+        var serial = options.ResolvedSerial;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiBlockWriteRequest(serial, request),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryBlockWriteRequest(serial, request),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode4CExecuteMonitorRequest(MitsubishiClientOptions options)
+    {
+        var serial = options.ResolvedSerial;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiExecuteMonitorRequest(serial),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryExecuteMonitorRequest(serial),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode4CRemoteOperationRequest(MitsubishiClientOptions options, ushort command, bool force, bool clearMode)
+    {
+        var serial = options.ResolvedSerial;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiRemoteOperationRequest(serial, command, force, clearMode),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryRemoteOperationRequest(serial, command, force, clearMode),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode4CRawRequest(MitsubishiClientOptions options, ushort command, ushort subcommand, IReadOnlyList<byte> body)
+    {
+        var serial = options.ResolvedSerial;
+        return serial.MessageFormat switch
+        {
+            MitsubishiSerialMessageFormat.Format1 or MitsubishiSerialMessageFormat.Format4 => Encode4CAsciiRawRequest(serial, command, subcommand, body),
+            MitsubishiSerialMessageFormat.Format5 => Encode4CBinaryRawRequest(serial, command, subcommand, body),
+            _ => throw new NotSupportedException($"Unsupported 4C serial message format '{serial.MessageFormat}'."),
+        };
+    }
+
+    private static byte[] Encode4CAsciiWriteRequest(MitsubishiSerialOptions serial, MitsubishiDeviceAddress address, MitsubishiDeviceMetadata metadata, IReadOnlyList<ushort> values)
+    {
+        var body = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "1401",
+            "0000",
+            FormatDeviceAddressModern(address, metadata),
+            FormatAsciiUInt16(checked((ushort)values.Count)),
+            FormatWordValuesAscii(values));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CAsciiBitWriteRequest(MitsubishiSerialOptions serial, MitsubishiDeviceAddress address, MitsubishiDeviceMetadata metadata, IReadOnlyList<bool> values)
+    {
+        var body = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "1401",
+            "0001",
+            FormatDeviceAddressModern(address, metadata),
+            FormatAsciiUInt16(checked((ushort)values.Count)),
+            FormatBitValuesAscii(values));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CAsciiRandomReadRequest(MitsubishiSerialOptions serial, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        var body = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "0403",
+            "0000",
+            FormatAsciiUInt16(checked((ushort)addresses.Count)),
+            "0000",
+            string.Concat(addresses.Select(static address => FormatDeviceAddressModern(address, address.Descriptor))));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CAsciiRandomWriteRequest(MitsubishiSerialOptions serial, IReadOnlyList<MitsubishiDeviceValue> values)
+    {
+        var body = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "1402",
+            "0000",
+            FormatAsciiUInt16(checked((ushort)values.Count)),
+            "0000",
+            string.Concat(values.Select(static value => FormatDeviceAddressModern(value.Address, value.Address.Descriptor) + value.Value.ToString("X4", CultureInfo.InvariantCulture))));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CAsciiBlockReadRequest(MitsubishiSerialOptions serial, MitsubishiBlockRequest request)
+    {
+        var body = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "0406",
+            "0000",
+            FormatBlocksAscii(request, includeValues: false));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CAsciiBlockWriteRequest(MitsubishiSerialOptions serial, MitsubishiBlockRequest request)
+    {
+        var body = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "1406",
+            "0000",
+            FormatBlocksAscii(request, includeValues: true));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CAsciiMonitorRegistrationRequest(MitsubishiSerialOptions serial, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        var body = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "0801",
+            "0000",
+            FormatAsciiUInt16(checked((ushort)addresses.Count)),
+            "0000",
+            string.Concat(addresses.Select(static address => FormatDeviceAddressModern(address, address.Descriptor))));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CAsciiExecuteMonitorRequest(MitsubishiSerialOptions serial)
+    {
+        var body = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            "0802",
+            "0000");
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CAsciiRemoteOperationRequest(MitsubishiSerialOptions serial, ushort command, bool force, bool clearMode)
+    {
+        var body = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            command.ToString("X4", CultureInfo.InvariantCulture),
+            "0000",
+            FormatRemoteOperationPayloadAscii(command, force, clearMode));
+
+        return WrapAscii(body, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CAsciiRawRequest(MitsubishiSerialOptions serial, ushort command, ushort subcommand, IReadOnlyList<byte> body)
+    {
+        var payload = body.Count == 0 ? string.Empty : Encoding.ASCII.GetString(body.ToArray());
+        var requestBody = string.Concat(
+            FormatAsciiByte(FourCFrameId),
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.NetworkNumber),
+            FormatAsciiByte(serial.PcNumber),
+            FormatAsciiUInt16(serial.RequestDestinationModuleIoNumber),
+            FormatAsciiByte(serial.RequestDestinationModuleStationNumber),
+            FormatAsciiByte(serial.SelfStationNumber),
+            command.ToString("X4", CultureInfo.InvariantCulture),
+            subcommand.ToString("X4", CultureInfo.InvariantCulture),
+            payload);
+
+        return WrapAscii(requestBody, serial.MessageFormat);
+    }
+
+    private static byte[] Encode4CBinaryWriteRequest(MitsubishiSerialOptions serial, MitsubishiDeviceAddress address, MitsubishiDeviceMetadata metadata, IReadOnlyList<ushort> values)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+
+        AppendUInt16LittleEndian(buffer, 0x1401);
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        AppendThreeByteLittleEndian(buffer, address.Number);
+        buffer.Add((byte)metadata.BinaryCode);
+        AppendUInt16LittleEndian(buffer, checked((ushort)values.Count));
+        AppendWordsLittleEndian(buffer, values);
+        return Finalize4CBinaryFrame(buffer);
+    }
+
+    private static byte[] Encode4CBinaryBitWriteRequest(MitsubishiSerialOptions serial, MitsubishiDeviceAddress address, MitsubishiDeviceMetadata metadata, IReadOnlyList<bool> values)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+
+        AppendUInt16LittleEndian(buffer, 0x1401);
+        AppendUInt16LittleEndian(buffer, 0x0001);
+        AppendThreeByteLittleEndian(buffer, address.Number);
+        buffer.Add((byte)metadata.BinaryCode);
+        AppendUInt16LittleEndian(buffer, checked((ushort)values.Count));
+        AppendBitsBinary(buffer, values);
+        return Finalize4CBinaryFrame(buffer);
+    }
+
+    private static byte[] Encode4CBinaryRandomReadRequest(MitsubishiSerialOptions serial, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+        AppendUInt16LittleEndian(buffer, 0x0403);
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        AppendUInt16LittleEndian(buffer, checked((ushort)addresses.Count));
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        foreach (var address in addresses)
+        {
+            AppendThreeByteLittleEndian(buffer, address.Number);
+            buffer.Add((byte)address.Descriptor.BinaryCode);
+        }
+
+        return Finalize4CBinaryFrame(buffer);
+    }
+
+    private static byte[] Encode4CBinaryRandomWriteRequest(MitsubishiSerialOptions serial, IReadOnlyList<MitsubishiDeviceValue> values)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+        AppendUInt16LittleEndian(buffer, 0x1402);
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        AppendUInt16LittleEndian(buffer, checked((ushort)values.Count));
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        foreach (var value in values)
+        {
+            AppendThreeByteLittleEndian(buffer, value.Address.Number);
+            buffer.Add((byte)value.Address.Descriptor.BinaryCode);
+            AppendUInt16LittleEndian(buffer, value.Value);
+        }
+
+        return Finalize4CBinaryFrame(buffer);
+    }
+
+    private static byte[] Encode4CBinaryBlockReadRequest(MitsubishiSerialOptions serial, MitsubishiBlockRequest request)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+        AppendUInt16LittleEndian(buffer, 0x0406);
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        AppendBlocksBinary(buffer, request, includeValues: false);
+        return Finalize4CBinaryFrame(buffer);
+    }
+
+    private static byte[] Encode4CBinaryBlockWriteRequest(MitsubishiSerialOptions serial, MitsubishiBlockRequest request)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+        AppendUInt16LittleEndian(buffer, 0x1406);
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        AppendBlocksBinary(buffer, request, includeValues: true);
+        return Finalize4CBinaryFrame(buffer);
+    }
+
+    private static byte[] Encode4CBinaryMonitorRegistrationRequest(MitsubishiSerialOptions serial, IReadOnlyList<MitsubishiDeviceAddress> addresses)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+        AppendUInt16LittleEndian(buffer, 0x0801);
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        AppendUInt16LittleEndian(buffer, checked((ushort)addresses.Count));
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        foreach (var address in addresses)
+        {
+            AppendThreeByteLittleEndian(buffer, address.Number);
+            buffer.Add((byte)address.Descriptor.BinaryCode);
+        }
+
+        return Finalize4CBinaryFrame(buffer);
+    }
+
+    private static byte[] Encode4CBinaryExecuteMonitorRequest(MitsubishiSerialOptions serial)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+        AppendUInt16LittleEndian(buffer, 0x0802);
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        return Finalize4CBinaryFrame(buffer);
+    }
+
+    private static byte[] Encode4CBinaryRemoteOperationRequest(MitsubishiSerialOptions serial, ushort command, bool force, bool clearMode)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+        AppendUInt16LittleEndian(buffer, command);
+        AppendUInt16LittleEndian(buffer, 0x0000);
+        if (command == MitsubishiCommands.RemoteRun)
+        {
+            AppendUInt16LittleEndian(buffer, force ? (ushort)0x0001 : (ushort)0x0000);
+            AppendUInt16LittleEndian(buffer, clearMode ? (ushort)0x0001 : (ushort)0x0000);
+        }
+
+        return Finalize4CBinaryFrame(buffer);
+    }
+
+    private static byte[] Encode4CBinaryRawRequest(MitsubishiSerialOptions serial, ushort command, ushort subcommand, IReadOnlyList<byte> body)
+    {
+        var buffer = Create4CBinaryHeader(serial);
+        AppendUInt16LittleEndian(buffer, command);
+        AppendUInt16LittleEndian(buffer, subcommand);
+        buffer.AddRange(body);
+        return Finalize4CBinaryFrame(buffer);
     }
 
     private static Responce<byte[]> Decode1C(MitsubishiClientOptions options, byte[] response)
@@ -309,6 +1159,84 @@ internal static class MitsubishiSerialProtocolEncoding
     private static string FormatPointCount(int points)
         => (points == 256 ? 0 : points).ToString("X2", CultureInfo.InvariantCulture);
 
+    private static string FormatWordValuesAscii(IEnumerable<ushort> values)
+        => string.Concat(values.Select(static value => value.ToString("X4", CultureInfo.InvariantCulture)));
+
+    private static string FormatBitValuesAscii(IEnumerable<bool> values)
+        => string.Concat(values.Select(static value => value ? '1' : '0'));
+
+    private static string FormatBlocksAscii(MitsubishiBlockRequest request, bool includeValues)
+    {
+        var builder = new StringBuilder();
+        builder.Append(FormatAsciiUInt16(checked((ushort)request.ResolvedWordBlocks.Count)));
+        builder.Append(FormatAsciiUInt16(checked((ushort)request.ResolvedBitBlocks.Count)));
+
+        foreach (var block in request.ResolvedWordBlocks)
+        {
+            builder.Append(FormatDeviceAddressModern(block.Address, block.Address.Descriptor));
+            builder.Append(FormatAsciiUInt16(checked((ushort)block.Values.Length)));
+            if (includeValues)
+            {
+                builder.Append(FormatWordValuesAscii(block.Values.ToArray()));
+            }
+        }
+
+        foreach (var block in request.ResolvedBitBlocks)
+        {
+            builder.Append(FormatDeviceAddressModern(block.Address, block.Address.Descriptor));
+            builder.Append(FormatAsciiUInt16(checked((ushort)block.Values.Length)));
+            if (includeValues)
+            {
+                builder.Append(string.Concat(block.Values.ToArray().Select(static value => value ? "10" : "00")));
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static string FormatRemoteOperationPayloadAscii(ushort command, bool force, bool clearMode)
+        => command == MitsubishiCommands.RemoteRun
+            ? $"{(force ? "0001" : "0000")}{(clearMode ? "0001" : "0000")}"
+            : string.Empty;
+
+    private static byte[] BuildLoopbackBody(MitsubishiClientOptions options, ReadOnlySpan<byte> data)
+    {
+        if (options.DataCode == CommunicationDataCode.Ascii)
+        {
+            return Encoding.ASCII.GetBytes(FormatAsciiUInt16(checked((ushort)data.Length)) + Encoding.ASCII.GetString(data));
+        }
+
+        var buffer = new List<byte>();
+        AppendUInt16LittleEndian(buffer, checked((ushort)data.Length));
+        buffer.AddRange(data.ToArray());
+        return buffer.ToArray();
+    }
+
+    private static byte[] BuildMemoryAccessBody(MitsubishiClientOptions options, ushort command, ushort address, int length, ReadOnlySpan<ushort> values)
+    {
+        var buffer = new List<byte>();
+        if (options.DataCode == CommunicationDataCode.Ascii)
+        {
+            buffer.AddRange(Encoding.ASCII.GetBytes(FormatAsciiUInt16(address)));
+            buffer.AddRange(Encoding.ASCII.GetBytes(FormatAsciiUInt16(checked((ushort)length))));
+            if (command is MitsubishiCommands.MemoryWrite or MitsubishiCommands.ExtendUnitWrite)
+            {
+                buffer.AddRange(Encoding.ASCII.GetBytes(FormatWordValuesAscii(values.ToArray())));
+            }
+
+            return buffer.ToArray();
+        }
+
+        AppendUInt16LittleEndian(buffer, address);
+        AppendUInt16LittleEndian(buffer, checked((ushort)length));
+        if (command is MitsubishiCommands.MemoryWrite or MitsubishiCommands.ExtendUnitWrite)
+        {
+            AppendWordsLittleEndian(buffer, values.ToArray());
+        }
+
+        return buffer.ToArray();
+    }
+
     private static string FormatAsciiByte(byte value) => value.ToString("X2", CultureInfo.InvariantCulture);
 
     private static string FormatAsciiNibble(byte value) => (value & 0x0F).ToString("X1", CultureInfo.InvariantCulture);
@@ -386,5 +1314,76 @@ internal static class MitsubishiSerialProtocolEncoding
         buffer.Add((byte)(value & 0xFF));
         buffer.Add((byte)((value >> 8) & 0xFF));
         buffer.Add((byte)((value >> 16) & 0xFF));
+    }
+
+    private static void AppendWordsLittleEndian(List<byte> buffer, IEnumerable<ushort> values)
+    {
+        foreach (var value in values)
+        {
+            AppendUInt16LittleEndian(buffer, value);
+        }
+    }
+
+    private static void AppendBlocksBinary(List<byte> buffer, MitsubishiBlockRequest request, bool includeValues)
+    {
+        AppendUInt16LittleEndian(buffer, checked((ushort)request.ResolvedWordBlocks.Count));
+        AppendUInt16LittleEndian(buffer, checked((ushort)request.ResolvedBitBlocks.Count));
+
+        foreach (var block in request.ResolvedWordBlocks)
+        {
+            AppendThreeByteLittleEndian(buffer, block.Address.Number);
+            buffer.Add((byte)block.Address.Descriptor.BinaryCode);
+            AppendUInt16LittleEndian(buffer, checked((ushort)block.Values.Length));
+            if (includeValues)
+            {
+                AppendWordsLittleEndian(buffer, block.Values.ToArray());
+            }
+        }
+
+        foreach (var block in request.ResolvedBitBlocks)
+        {
+            AppendThreeByteLittleEndian(buffer, block.Address.Number);
+            buffer.Add((byte)block.Address.Descriptor.BinaryCode);
+            AppendUInt16LittleEndian(buffer, checked((ushort)block.Values.Length));
+            if (includeValues)
+            {
+                AppendBitsBinary(buffer, block.Values.ToArray());
+            }
+        }
+    }
+
+    private static List<byte> Create4CBinaryHeader(MitsubishiSerialOptions serial)
+        =>
+        [
+            FourCFrameId,
+            serial.StationNumber,
+            serial.NetworkNumber,
+            serial.PcNumber,
+            (byte)(serial.RequestDestinationModuleIoNumber & 0xFF),
+            (byte)(serial.RequestDestinationModuleIoNumber >> 8),
+            serial.RequestDestinationModuleStationNumber,
+            serial.SelfStationNumber,
+        ];
+
+    private static byte[] Finalize4CBinaryFrame(List<byte> buffer)
+    {
+        buffer.Add(Dle);
+        buffer.Add(Etx);
+
+        var numberOfDataBytes = checked((ushort)(buffer.Count - 2));
+        var prefix = new List<byte> { Dle, Stx };
+        AppendUInt16LittleEndian(prefix, numberOfDataBytes);
+        prefix.AddRange(buffer);
+        var checksum = ComputeChecksum(prefix.Skip(2).Take(2 + numberOfDataBytes));
+        prefix.AddRange(Encoding.ASCII.GetBytes(checksum));
+        return prefix.ToArray();
+    }
+
+    private static void AppendBitsBinary(List<byte> buffer, IEnumerable<bool> values)
+    {
+        foreach (var value in values)
+        {
+            buffer.Add(value ? (byte)0x10 : (byte)0x00);
+        }
     }
 }

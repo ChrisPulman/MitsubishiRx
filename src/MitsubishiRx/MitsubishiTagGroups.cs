@@ -49,4 +49,21 @@ public sealed record MitsubishiTagGroupSnapshot(string GroupName, IReadOnlyDicti
 
         throw new InvalidCastException($"Tag '{tagName}' in snapshot '{GroupName}' is of type '{value?.GetType().Name ?? "null"}', not '{typeof(T).Name}'.");
     }
+
+    /// <summary>
+    /// Gets an optional typed value by tag name, returning <c>default</c> when the tag is missing or cannot be cast.
+    /// </summary>
+    /// <typeparam name="T">Expected value type.</typeparam>
+    /// <param name="tagName">Tag name.</param>
+    /// <returns>Typed value or <c>default</c>.</returns>
+    public T? GetOptional<T>(string tagName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tagName);
+        if (!Values.TryGetValue(tagName, out var value))
+        {
+            return default;
+        }
+
+        return value is T typed ? typed : default;
+    }
 }

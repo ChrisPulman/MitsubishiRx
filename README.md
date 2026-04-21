@@ -329,11 +329,21 @@ Current serial implementation status:
 | Serial frame modeling (`1C`, `3C`, `4C`) | **Implemented** |
 | Serial option/configuration surface | **Implemented** |
 | Batch word read over serial | **Implemented** |
+| Batch word write over serial | **Implemented** |
+| Batch bit read over serial | **Implemented** |
+| Batch bit write over serial | **Implemented** |
+| Random word read over serial | **Implemented for `3C` / `4C`; `1C` reports not supported** |
+| Random word write over serial | **Implemented for `3C` / `4C`; `1C` reports not supported** |
 | `1C` ASCII format 1/4 decode path | **Implemented** |
 | `3C` ASCII format 1/4 decode path | **Implemented** |
 | `4C` ASCII and binary format 5 decode path | **Implemented** |
-| Serial writes / random / block / monitor / remote control / memory operations | **Not yet implemented** |
-| Raw serial command execution | **Not yet implemented** |
+| Serial block read/write | **Implemented for `3C` / `4C`; `1C` reports not supported** |
+| Serial monitor registration/execution | **Implemented for `3C` / `4C`; `1C` monitor registration reports not supported** |
+| Serial remote control commands | **Implemented for `3C` / `4C`; `1C` reports not supported** |
+| Serial type-name read | **Implemented for tested `3C` ASCII / `4C` format 5; `1C` reports not supported** |
+| Serial loopback | **Implemented for tested `3C` ASCII / `4C` format 5; `1C` reports not supported** |
+| Serial memory / extend-unit read-write | **Implemented for tested `3C` ASCII / `4C` format 5; `1C` reports not supported** |
+| Raw serial command execution | **Implemented for tested `3C` ASCII / `4C` format 5; `1C` reports not supported** |
 
 ---
 
@@ -772,6 +782,120 @@ groupTrigger.OnNext(Unit.Default);
 ```
 
 These grouped reactive APIs are useful for HMI/dashboard polling loops because they keep the application written against stable symbolic names instead of raw PLC addresses.
+
+### Reactive hot shared value streams
+
+```csharp
+using var reactiveWords = client
+    .ObserveReactiveWords("D100", 2, TimeSpan.FromSeconds(1))
+    .Subscribe(value =>
+    {
+        if (value.Quality == MitsubishiReactiveQuality.Good && value.Value is not null)
+        {
+            Console.WriteLine($"Words: {string.Join(", ", value.Value)} @ {value.TimestampUtc:u}");
+        }
+    });
+```
+
+```csharp
+using var reactiveTag = client
+    .ObserveReactiveTag<float>("MotorSpeed", TimeSpan.FromMilliseconds(250))
+    .Subscribe(value =>
+    {
+        if (value.Quality == MitsubishiReactiveQuality.Good)
+        {
+            Console.WriteLine($"MotorSpeed={value.Value}");
+        }
+    });
+```
+
+```csharp
+using var reactiveGroup = client
+    .ObserveReactiveTagGroup("Line1Overview", TimeSpan.FromSeconds(1))
+    .Subscribe(value =>
+    {
+        if (value.Quality == MitsubishiReactiveQuality.Good && value.Value is not null)
+        {
+            Console.WriteLine(value.Value.GetRequired<uint>("TotalCount"));
+        }
+    });
+```
+
+These planner-backed reactive APIs are shared/hot streams with replay of the latest value and teardown when the final subscriber unsubscribes.
+
+### Reactive write pipelines
+
+```csharp
+var setpointWrites = client.CreateReactiveTagWritePipeline<float>(
+    "Setpoint",
+    MitsubishiReactiveWriteMode.LatestWins,
+    coalescingWindow: TimeSpan.FromMilliseconds(100));
+
+using var writeResults = setpointWrites.Results.Subscribe(result =>
+    Console.WriteLine($"Write success={result.Response.IsSucceed} payload={result.Payload}"));
+
+setpointWrites.Enqueue(12.5f);
+setpointWrites.Enqueue(13.0f);
+```
+
+Supported modes:
+- `Queued`
+- `LatestWins`
+- `Coalescing`
+
+### Generated typed client surface
+
+You can attach schema JSON for the generator using `MitsubishiTagClientSchemaAttribute`, then use the generated typed facade from the client instance via the generated extension method. When a consuming project references the main `MitsubishiRx` package, the bundled analyzer automatically supplies the generator — no separate generator package reference is required.
+
+```csharp
+using MitsubishiRx;
+
+[MitsubishiTagClientSchema(
+    """
+    {
+      "tags": [
+        { "name": "MotorSpeed", "address": "D100", "dataType": "Float" },
+        { "name": "Mode", "address": "D101", "dataType": "UInt16" }
+      ],
+      "groups": [
+        { "name": "Line1", "tagNames": ["MotorSpeed", "Mode"] }
+      ]
+    }
+    """)]
+internal sealed class PlcSchema;
+```
+
+```csharp
+var speed = await client.Generated().Tags.MotorSpeed.ReadAsync();
+await client.Generated().Tags.Mode.WriteAsync(2);
+
+using var generatedTagSub = client.Generated().Tags.MotorSpeed.Observe(TimeSpan.FromMilliseconds(250))
+    .Subscribe(value => Console.WriteLine(value.Value));
+
+var line1 = await client.Generated().Groups.Line1.ReadAsync();
+Console.WriteLine(line1.Value?.Mode);
+
+using var generatedGroupSub = client.Generated().Groups.Line1.Observe(TimeSpan.FromSeconds(1))
+    .Subscribe(value => Console.WriteLine(value.Value?.Mode));
+
+var optionalLine1 = await client.Generated().Groups.Line1.ReadOptionalAsync();
+Console.WriteLine(optionalLine1.Value?.Mode);
+
+using var optionalGeneratedGroupSub = client.Generated().Groups.Line1.ObserveOptional(TimeSpan.FromSeconds(1))
+    .Subscribe(value => Console.WriteLine(value.Value?.Mode));
+
+if (line1.Value is not null)
+{
+    await client.Generated().Groups.Line1.WriteAsync(line1.Value);
+}
+```
+
+Generated accessors currently cover typed tag read/write/observe plus generated typed group snapshot read/write/observe for schema-defined tags and groups, with optional group read/observe variants when a snapshot may be incomplete. The main `MitsubishiRx` package bundles the analyzer automatically; consumers do **not** need a separate generator package reference.
+
+The generator now also reports compile-time schema diagnostics for common authoring mistakes before any generated API is emitted:
+- duplicate tag names
+- groups referencing unknown tag names
+- unsupported tag `dataType` values outside the currently generated set (`Bit`, `Word`, `DWord`, `Float`, `String`, `Int16`, `UInt16`, `Int32`, `UInt32`)
 
 ### Operation logs and sampled diagnostics
 
@@ -1766,7 +1890,7 @@ var serialEndpoint = new MitsubishiClientOptions(
 
 ### Serial coverage note
 
-The quick map lists the full public API surface. Current serial support is narrower than Ethernet support. At this stage, the verified serial operation is **batch word read** via `ReadWordsAsync(address, points)` using `1C`, `3C`, or `4C` plus `MitsubishiTransportKind.Serial`.
+The quick map lists the full public API surface. Current serial support is narrower than Ethernet support. At this stage, the verified serial operations are **batch word read** via `ReadWordsAsync(address, points)`, **batch word write** via `WriteWordsAsync(address, values)`, **batch bit read** via `ReadBitsAsync(address, points)`, **batch bit write** via `WriteBitsAsync(address, values)`, **random word read/write** via `RandomReadWordsAsync(addresses)` / `RandomWriteWordsAsync(values)`, **block read/write** via `ReadBlocksAsync(request)` / `WriteBlocksAsync(request)`, **monitor registration/execution** via `RegisterMonitorAsync(addresses)` / `ExecuteMonitorAsync()`, and **remote control** via `RemoteRunAsync(force, clearMode)`, `RemoteStopAsync()`, `RemotePauseAsync()`, `RemoteLatchClearAsync()`, and `RemoteResetAsync()` using `1C`, `3C`, or `4C` plus `MitsubishiTransportKind.Serial`. For serial random, block, monitor, and remote-control operations in the current implementation, `1C` reports not supported while `3C` and `4C` are covered by tests.
 
 ---
 
@@ -1800,17 +1924,32 @@ Current serial implementation is intentionally narrower than Ethernet support. I
 Currently implemented and verified for serial:
 - reactive SerialPortRx-based transport
 - serial batch word reads through `ReadWordsAsync(address, points)`
+- serial batch word writes through `WriteWordsAsync(address, values)`
+- serial batch bit reads through `ReadBitsAsync(address, points)`
+- serial batch bit writes through `WriteBitsAsync(address, values)`
+- serial random word reads through `RandomReadWordsAsync(addresses)` for `3C` / `4C`
+- serial random word writes through `RandomWriteWordsAsync(values)` for `3C` / `4C`
+- serial block reads through `ReadBlocksAsync(request)` for `3C` / `4C`
+- serial block writes through `WriteBlocksAsync(request)` for `3C` / `4C`
+- serial monitor registration through `RegisterMonitorAsync(addresses)` for `3C` / `4C`
+- serial monitor execution through `ExecuteMonitorAsync()` for `3C` / `4C`
+- serial remote RUN/STOP/PAUSE/LATCH CLEAR/RESET through `RemoteRunAsync(...)`, `RemoteStopAsync()`, `RemotePauseAsync()`, `RemoteLatchClearAsync()`, and `RemoteResetAsync()` for `3C` / `4C`
+- serial type-name read through `ReadTypeNameAsync()` for tested `3C` ASCII / `4C` format 5
+- serial loopback through `LoopbackAsync(data)` for tested `3C` ASCII / `4C` format 5
+- serial memory and extend-unit access through `ReadMemoryAsync(...)` / `WriteMemoryAsync(...)` for tested `3C` ASCII / `4C` format 5
+- raw serial command execution through `ExecuteRawAsync(request)` for tested `3C` ASCII / `4C` format 5
 - `1C`, `3C`, and `4C` frame selection
 - serial ASCII format 1/4 and 4C binary format 5 decode paths
 
 Not yet implemented for serial:
-- serial writes
-- random operations
-- block operations
-- monitor registration/execution
-- remote control commands
-- memory / extend-unit commands
-- raw serial command execution
+- `1C` random operations
+- `1C` block operations
+- `1C` monitor registration/execution
+- `1C` remote control commands
+- `1C` type-name read
+- `1C` loopback
+- `1C` memory / extend-unit commands
+- `1C` raw command execution
 
 ### Remote operations do not execute
 

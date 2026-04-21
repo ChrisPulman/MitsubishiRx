@@ -18,7 +18,7 @@ namespace MitsubishiRx;
 /// <summary>
 /// Reactive Mitsubishi Ethernet client supporting 1E, 3E, and 4E MC protocol / SLMP communication.
 /// </summary>
-public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
+public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
 {
     private readonly BehaviorSubject<MitsubishiConnectionState> _connectionStates = new(MitsubishiConnectionState.Disconnected);
     private readonly Subject<MitsubishiOperationLog> _operationLogs = new();
@@ -72,6 +72,28 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
     /// Gets or sets the optional symbolic tag database used to resolve human-friendly tag names.
     /// </summary>
     public MitsubishiTagDatabase? TagDatabase { get; set; }
+
+    /// <summary>
+    /// Reads a single bit value using a configured tag name.
+    /// Intended as a generated-client-friendly wrapper over <see cref="ReadBitsByTagAsync(string, int, CancellationToken)"/>.
+    /// </summary>
+    public async Task<Responce<bool>> ReadGeneratedBitTagAsync(string tagName, CancellationToken cancellationToken = default)
+    {
+        var raw = await ReadBitsByTagAsync(tagName, 1, cancellationToken).ConfigureAwait(false);
+        if (!raw.IsSucceed || raw.Value is null)
+        {
+            return new Responce<bool>(raw);
+        }
+
+        return new Responce<bool>(raw, raw.Value[0]);
+    }
+
+    /// <summary>
+    /// Writes a single bit value using a configured tag name.
+    /// Intended as a generated-client-friendly wrapper over <see cref="WriteBitsByTagAsync(string, IReadOnlyList{bool}, CancellationToken)"/>.
+    /// </summary>
+    public Task<Responce> WriteGeneratedBitTagAsync(string tagName, bool value, CancellationToken cancellationToken = default)
+        => WriteBitsByTagAsync(tagName, [value], cancellationToken);
 
     /// <summary>
     /// Reads word devices using a configured tag name instead of a raw PLC address.
@@ -807,7 +829,7 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(request);
         return ExecuteObservableAsync(
             () => Options.TransportKind == MitsubishiTransportKind.Serial
-                ? throw new NotSupportedException("Raw serial execution is not yet implemented for 1C/3C/4C commands.")
+                ? MitsubishiSerialProtocolEncoding.EncodeRawRequest(Options, request)
                 : MitsubishiProtocolEncoding.Encode(Options, request),
             Options.TransportKind == MitsubishiTransportKind.Serial
                 ? null
@@ -850,8 +872,12 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(values);
         var parsed = MitsubishiDeviceAddress.Parse(address, Options.XyNotation);
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeDeviceBatchWrite(Options, parsed, values.ToArray(), bitUnits: false),
-            Options.FrameType == MitsubishiFrameType.OneE ? 2 : null,
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeWordWriteRequest(Options, parsed, values)
+                : MitsubishiProtocolEncoding.EncodeDeviceBatchWrite(Options, parsed, values.ToArray(), bitUnits: false),
+            Options.TransportKind == MitsubishiTransportKind.Serial
+                ? null
+                : Options.FrameType == MitsubishiFrameType.OneE ? 2 : null,
             $"Write words {address}",
             cancellationToken).ConfigureAwait(false);
         return raw.ToBaseResponse();
@@ -867,9 +893,13 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
     public async Task<Responce<bool[]>> ReadBitsAsync(string address, int points, CancellationToken cancellationToken = default)
     {
         var parsed = MitsubishiDeviceAddress.Parse(address, Options.XyNotation);
-        int? expected = Options.FrameType == MitsubishiFrameType.OneE ? 2 + ((points + 1) / 2) : null;
+        int? expected = Options.TransportKind == MitsubishiTransportKind.Serial
+            ? null
+            : Options.FrameType == MitsubishiFrameType.OneE ? 2 + ((points + 1) / 2) : null;
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeDeviceBatchRead(Options, parsed, points, bitUnits: true),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeBitReadRequest(Options, parsed, points)
+                : MitsubishiProtocolEncoding.EncodeDeviceBatchRead(Options, parsed, points, bitUnits: true),
             expected,
             $"Read bits {address}",
             cancellationToken).ConfigureAwait(false);
@@ -888,8 +918,12 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(values);
         var parsed = MitsubishiDeviceAddress.Parse(address, Options.XyNotation);
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeDeviceBatchWrite(Options, parsed, values.Select(static v => v ? (ushort)1 : (ushort)0).ToArray(), bitUnits: true),
-            Options.FrameType == MitsubishiFrameType.OneE ? 2 : null,
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeBitWriteRequest(Options, parsed, values)
+                : MitsubishiProtocolEncoding.EncodeDeviceBatchWrite(Options, parsed, values.Select(static v => v ? (ushort)1 : (ushort)0).ToArray(), bitUnits: true),
+            Options.TransportKind == MitsubishiTransportKind.Serial
+                ? null
+                : Options.FrameType == MitsubishiFrameType.OneE ? 2 : null,
             $"Write bits {address}",
             cancellationToken).ConfigureAwait(false);
         return raw.ToBaseResponse();
@@ -906,7 +940,9 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(addresses);
         var parsed = addresses.Select(address => MitsubishiDeviceAddress.Parse(address, Options.XyNotation)).ToArray();
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeRandomRead(Options, parsed),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeRandomReadRequest(Options, parsed)
+                : MitsubishiProtocolEncoding.EncodeRandomRead(Options, parsed),
             null,
             "Random read words",
             cancellationToken).ConfigureAwait(false);
@@ -924,7 +960,9 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(values);
         var payload = values.Select(pair => new MitsubishiDeviceValue(MitsubishiDeviceAddress.Parse(pair.Key, Options.XyNotation), pair.Value)).ToArray();
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeRandomWrite(Options, payload),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeRandomWriteRequest(Options, payload)
+                : MitsubishiProtocolEncoding.EncodeRandomWrite(Options, payload),
             null,
             "Random write words",
             cancellationToken).ConfigureAwait(false);
@@ -942,7 +980,9 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(addresses);
         var payload = addresses.Select(address => MitsubishiDeviceAddress.Parse(address, Options.XyNotation)).ToArray();
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeMonitorRegistration(Options, payload),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeMonitorRegistrationRequest(Options, payload)
+                : MitsubishiProtocolEncoding.EncodeMonitorRegistration(Options, payload),
             null,
             "Register monitor",
             cancellationToken).ConfigureAwait(false);
@@ -956,7 +996,9 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
     /// <returns>Raw monitor payload.</returns>
     public Task<Responce<byte[]>> ExecuteMonitorAsync(CancellationToken cancellationToken = default)
         => ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeExecuteMonitor(Options),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeExecuteMonitorRequest(Options)
+                : MitsubishiProtocolEncoding.EncodeExecuteMonitor(Options),
             null,
             "Execute monitor",
             cancellationToken);
@@ -971,7 +1013,9 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(request);
         return ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeBlockRead(Options, request),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeBlockReadRequest(Options, request)
+                : MitsubishiProtocolEncoding.EncodeBlockRead(Options, request),
             null,
             "Block read",
             cancellationToken);
@@ -987,7 +1031,9 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(request);
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeBlockWrite(Options, request),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeBlockWriteRequest(Options, request)
+                : MitsubishiProtocolEncoding.EncodeBlockWrite(Options, request),
             null,
             "Block write",
             cancellationToken).ConfigureAwait(false);
@@ -1002,7 +1048,9 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
     public async Task<Responce<MitsubishiTypeName>> ReadTypeNameAsync(CancellationToken cancellationToken = default)
     {
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeReadTypeName(Options),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeReadTypeNameRequest(Options)
+                : MitsubishiProtocolEncoding.EncodeReadTypeName(Options),
             null,
             "Read type name",
             cancellationToken).ConfigureAwait(false);
@@ -1093,13 +1141,17 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
     public async Task<Responce<byte[]>> LoopbackAsync(byte[] data, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(data);
-        int? expected = Options.FrameType == MitsubishiFrameType.OneE ? 4 + data.Length : null;
+        int? expected = Options.TransportKind == MitsubishiTransportKind.Serial
+            ? null
+            : Options.FrameType == MitsubishiFrameType.OneE ? 4 + data.Length : null;
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeLoopback(Options, data),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeLoopbackRequest(Options, data)
+                : MitsubishiProtocolEncoding.EncodeLoopback(Options, data),
             expected,
             "Loopback",
             cancellationToken).ConfigureAwait(false);
-        return raw;
+        return ParseLoopback(raw);
     }
 
     /// <summary>
@@ -1113,7 +1165,9 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
     public async Task<Responce<ushort[]>> ReadMemoryAsync(ushort command, ushort address, int length, CancellationToken cancellationToken = default)
     {
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeMemoryAccess(Options, command, address, length, Array.Empty<ushort>()),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeMemoryAccessRequest(Options, command, address, length, Array.Empty<ushort>())
+                : MitsubishiProtocolEncoding.EncodeMemoryAccess(Options, command, address, length, Array.Empty<ushort>()),
             null,
             $"Read memory {command:X4}",
             cancellationToken).ConfigureAwait(false);
@@ -1132,7 +1186,9 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(values);
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeMemoryAccess(Options, command, address, values.Count, values.ToArray()),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeMemoryAccessRequest(Options, command, address, values.Count, values.ToArray())
+                : MitsubishiProtocolEncoding.EncodeMemoryAccess(Options, command, address, values.Count, values.ToArray()),
             null,
             $"Write memory {command:X4}",
             cancellationToken).ConfigureAwait(false);
@@ -1288,6 +1344,7 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         _operationLogs.OnCompleted();
         _connectionStates.Dispose();
         _operationLogs.Dispose();
+        DisposeReactiveStreams();
         _transport.Dispose();
         _requestGate.Dispose();
         GC.SuppressFinalize(this);
@@ -1306,6 +1363,7 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         _operationLogs.OnCompleted();
         _connectionStates.Dispose();
         _operationLogs.Dispose();
+        DisposeReactiveStreams();
         await _transport.DisposeAsync().ConfigureAwait(false);
         _requestGate.Dispose();
         GC.SuppressFinalize(this);
@@ -1351,13 +1409,17 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         return valuesFromAscii;
     }
 
-    private IObservable<long> BuildPollingTrigger(TimeSpan pollInterval)
-        => Observable.Interval(pollInterval, _scheduler).StartWith(0L);
+    private IObservable<long> BuildPollingTrigger(TimeSpan pollInterval, bool emitInitial = true)
+        => emitInitial
+            ? Observable.Interval(pollInterval, _scheduler).StartWith(0L)
+            : Observable.Interval(pollInterval, _scheduler);
 
     private async Task<Responce> ExecuteControlAsync(ushort command, CancellationToken cancellationToken, bool force = true, bool clearMode = false)
     {
         var raw = await ExecuteObservableAsync(
-            () => MitsubishiProtocolEncoding.EncodeRemoteOperation(Options, command, force, clearMode),
+            () => Options.TransportKind == MitsubishiTransportKind.Serial
+                ? MitsubishiSerialProtocolEncoding.EncodeRemoteOperationRequest(Options, command, force, clearMode)
+                : MitsubishiProtocolEncoding.EncodeRemoteOperation(Options, command, force, clearMode),
             null,
             $"Remote operation {command:X4}",
             cancellationToken).ConfigureAwait(false);
@@ -1480,6 +1542,51 @@ public sealed class MitsubishiRx : IDisposable, IAsyncDisposable
         catch (Exception ex)
         {
             return new Responce<MitsubishiTypeName>(raw).Fail(ex.Message, exception: ex);
+        }
+    }
+
+    private Responce<byte[]> ParseLoopback(Responce<byte[]> raw)
+    {
+        if (!raw.IsSucceed || raw.Value is null)
+        {
+            return new Responce<byte[]>(raw);
+        }
+
+        try
+        {
+            if (Options.TransportKind != MitsubishiTransportKind.Serial)
+            {
+                return raw;
+            }
+
+            if (Options.DataCode == CommunicationDataCode.Binary)
+            {
+                if (raw.Value.Length < 2)
+                {
+                    throw new InvalidOperationException("Loopback payload is missing the returned length field.");
+                }
+
+                var length = BitConverter.ToUInt16(raw.Value, 0);
+                var available = Math.Max(0, raw.Value.Length - 2);
+                var count = Math.Min(length, available);
+                return new Responce<byte[]>(raw, raw.Value.Skip(2).Take(count).ToArray());
+            }
+
+            var ascii = System.Text.Encoding.ASCII.GetString(raw.Value);
+            if (ascii.Length < 4)
+            {
+                throw new InvalidOperationException("Loopback payload is missing the returned ASCII length field.");
+            }
+
+            var lengthValue = ushort.TryParse(ascii[..4], System.Globalization.NumberStyles.HexNumber, null, out var parsedLength)
+                ? parsedLength
+                : (ushort)0;
+            var echoed = ascii.Length > 4 ? ascii.Substring(4, Math.Min(lengthValue, ascii.Length - 4)) : string.Empty;
+            return new Responce<byte[]>(raw, System.Text.Encoding.ASCII.GetBytes(echoed));
+        }
+        catch (Exception ex)
+        {
+            return new Responce<byte[]>(raw).Fail(ex.Message, exception: ex);
         }
     }
 
