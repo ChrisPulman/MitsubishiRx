@@ -47,6 +47,38 @@ public sealed class MitsubishiTagClientGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor SanitizedIdentifierCollisionDiagnostic = new(
+        id: "MRTXGEN005",
+        title: "Generated identifier collision",
+        messageFormat: "Generated identifier '{0}' is produced by multiple {1}: {2}.",
+        category: "MitsubishiRx.Generators",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor EmptyTagNameDiagnostic = new(
+        id: "MRTXGEN006",
+        title: "Empty generated tag name",
+        messageFormat: "Tag name must not be empty.",
+        category: "MitsubishiRx.Generators",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor EmptyGroupNameDiagnostic = new(
+        id: "MRTXGEN007",
+        title: "Empty generated group name",
+        messageFormat: "Group name must not be empty.",
+        category: "MitsubishiRx.Generators",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor EmptyGroupMembershipDiagnostic = new(
+        id: "MRTXGEN008",
+        title: "Empty generated group membership",
+        messageFormat: "Group '{0}' must reference at least one tag.",
+        category: "MitsubishiRx.Generators",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly HashSet<string> SupportedDataTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "Bit",
@@ -183,9 +215,18 @@ public sealed class MitsubishiTagClientGenerator : IIncrementalGenerator
     {
         var isValid = true;
         var seenTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sanitizedTagNames = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var sanitizedGroupNames = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
         foreach (var tag in model.Tags)
         {
+            if (string.IsNullOrWhiteSpace(tag.Name))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(EmptyTagNameDiagnostic, Location.None));
+                isValid = false;
+                continue;
+            }
+
             if (!seenTags.Add(tag.Name))
             {
                 context.ReportDiagnostic(Diagnostic.Create(DuplicateTagDiagnostic, Location.None, tag.Name));
@@ -197,11 +238,29 @@ public sealed class MitsubishiTagClientGenerator : IIncrementalGenerator
                 context.ReportDiagnostic(Diagnostic.Create(UnsupportedDataTypeDiagnostic, Location.None, tag.Name, tag.DataType));
                 isValid = false;
             }
+
+            AddSanitizedName(sanitizedTagNames, MitsubishiTagClientEmitter.SanitizeIdentifier(tag.Name), tag.Name);
         }
 
-        var knownTags = new HashSet<string>(model.Tags.Select(static tag => tag.Name), StringComparer.OrdinalIgnoreCase);
+        var knownTags = new HashSet<string>(model.Tags.Where(static tag => !string.IsNullOrWhiteSpace(tag.Name)).Select(static tag => tag.Name), StringComparer.OrdinalIgnoreCase);
         foreach (var group in model.Groups)
         {
+            if (string.IsNullOrWhiteSpace(group.Name))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(EmptyGroupNameDiagnostic, Location.None));
+                isValid = false;
+            }
+            else
+            {
+                AddSanitizedName(sanitizedGroupNames, MitsubishiTagClientEmitter.SanitizeIdentifier(group.Name), group.Name);
+            }
+
+            if (group.TagNames.Count == 0)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(EmptyGroupMembershipDiagnostic, Location.None, group.Name));
+                isValid = false;
+            }
+
             foreach (var tagName in group.TagNames)
             {
                 if (!knownTags.Contains(tagName))
@@ -212,7 +271,41 @@ public sealed class MitsubishiTagClientGenerator : IIncrementalGenerator
             }
         }
 
+        ReportSanitizedCollisions(context, sanitizedTagNames, "tag names", ref isValid);
+        ReportSanitizedCollisions(context, sanitizedGroupNames, "group names", ref isValid);
+
         return isValid;
+    }
+
+    private static void AddSanitizedName(Dictionary<string, List<string>> index, string sanitizedName, string originalName)
+    {
+        if (!index.TryGetValue(sanitizedName, out var originals))
+        {
+            originals = new List<string>();
+            index[sanitizedName] = originals;
+        }
+
+        originals.Add(originalName);
+    }
+
+    private static void ReportSanitizedCollisions(SourceProductionContext context, Dictionary<string, List<string>> index, string entityKind, ref bool isValid)
+    {
+        foreach (var pair in index)
+        {
+            var distinctOriginals = pair.Value.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (distinctOriginals.Length <= 1)
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                SanitizedIdentifierCollisionDiagnostic,
+                Location.None,
+                pair.Key,
+                entityKind,
+                string.Join(", ", distinctOriginals)));
+            isValid = false;
+        }
     }
 
     private static bool MightBeSchemaAttribute(AttributeSyntax attribute)

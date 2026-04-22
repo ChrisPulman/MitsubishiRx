@@ -896,6 +896,10 @@ The generator now also reports compile-time schema diagnostics for common author
 - duplicate tag names
 - groups referencing unknown tag names
 - unsupported tag `dataType` values outside the currently generated set (`Bit`, `Word`, `DWord`, `Float`, `String`, `Int16`, `UInt16`, `Int32`, `UInt32`)
+- tag names that collapse to the same generated identifier after sanitization
+- empty tag names
+- empty group names
+- groups with no member tags
 
 ### Operation logs and sampled diagnostics
 

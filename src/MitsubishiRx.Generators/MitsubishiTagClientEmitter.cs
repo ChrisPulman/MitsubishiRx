@@ -293,7 +293,7 @@ internal static class MitsubishiTagClientEmitter
             _ => "WriteUInt16ByTagAsync",
         };
 
-    private static string SanitizeIdentifier(string value)
+    internal static string SanitizeIdentifier(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
