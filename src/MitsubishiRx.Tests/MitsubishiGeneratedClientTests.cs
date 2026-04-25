@@ -518,6 +518,103 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("Line1", StringComparison.Ordinal))).IsTrue();
     }
 
+    [Test]
+    public async Task IncrementalGeneratorReportsDiagnosticForDuplicateGroupNames()
+    {
+        const string schema = """
+        {
+          "tags": [
+            { "name": "MotorSpeed", "address": "D100", "dataType": "Float" }
+          ],
+          "groups": [
+            { "name": "Line1", "tagNames": ["MotorSpeed"] },
+            { "name": "Line1", "tagNames": ["MotorSpeed"] }
+          ]
+        }
+        """;
+
+        var source = $$"""
+        using MitsubishiRx;
+
+        [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
+        internal sealed class SchemaMarker { }
+        """;
+
+        var result = RunGeneratorCompilation(source);
+        var diagnostics = result.Diagnostics.Where(static d => d.Id == "MRTXGEN009").ToArray();
+
+        if (diagnostics.Length == 0)
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, result.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
+        }
+
+        await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("Line1", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task IncrementalGeneratorReportsDiagnosticForEmptyGroupTagReference()
+    {
+        const string schema = """
+        {
+          "tags": [
+            { "name": "MotorSpeed", "address": "D100", "dataType": "Float" }
+          ],
+          "groups": [
+            { "name": "Line1", "tagNames": [""] }
+          ]
+        }
+        """;
+
+        var source = $$"""
+        using MitsubishiRx;
+
+        [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
+        internal sealed class SchemaMarker { }
+        """;
+
+        var result = RunGeneratorCompilation(source);
+        var diagnostics = result.Diagnostics.Where(static d => d.Id == "MRTXGEN010").ToArray();
+
+        if (diagnostics.Length == 0)
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, result.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
+        }
+
+        await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("Line1", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task IncrementalGeneratorReportsDiagnosticForDuplicateGroupTagReference()
+    {
+        const string schema = """
+        {
+          "tags": [
+            { "name": "MotorSpeed", "address": "D100", "dataType": "Float" }
+          ],
+          "groups": [
+            { "name": "Line1", "tagNames": ["MotorSpeed", "MotorSpeed"] }
+          ]
+        }
+        """;
+
+        var source = $$"""
+        using MitsubishiRx;
+
+        [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
+        internal sealed class SchemaMarker { }
+        """;
+
+        var result = RunGeneratorCompilation(source);
+        var diagnostics = result.Diagnostics.Where(static d => d.Id == "MRTXGEN011").ToArray();
+
+        if (diagnostics.Length == 0)
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, result.Diagnostics.Select(static diagnostic => diagnostic.ToString())));
+        }
+
+        await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("MotorSpeed", StringComparison.Ordinal))).IsTrue();
+    }
+
     private static string RunGenerator(string source)
     {
         var result = RunGeneratorCompilation(source);

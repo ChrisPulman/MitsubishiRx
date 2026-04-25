@@ -79,6 +79,30 @@ public sealed class MitsubishiTagClientGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor DuplicateGroupDiagnostic = new(
+        id: "MRTXGEN009",
+        title: "Duplicate generated group name",
+        messageFormat: "Schema contains duplicate group name '{0}'.",
+        category: "MitsubishiRx.Generators",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor EmptyGroupTagReferenceDiagnostic = new(
+        id: "MRTXGEN010",
+        title: "Empty generated group tag reference",
+        messageFormat: "Group '{0}' contains an empty tag reference.",
+        category: "MitsubishiRx.Generators",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor DuplicateGroupTagReferenceDiagnostic = new(
+        id: "MRTXGEN011",
+        title: "Duplicate generated group tag reference",
+        messageFormat: "Group '{0}' references tag '{1}' more than once.",
+        category: "MitsubishiRx.Generators",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly HashSet<string> SupportedDataTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "Bit",
@@ -215,6 +239,7 @@ public sealed class MitsubishiTagClientGenerator : IIncrementalGenerator
     {
         var isValid = true;
         var seenTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var sanitizedTagNames = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         var sanitizedGroupNames = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
@@ -252,6 +277,12 @@ public sealed class MitsubishiTagClientGenerator : IIncrementalGenerator
             }
             else
             {
+                if (!seenGroups.Add(group.Name))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(DuplicateGroupDiagnostic, Location.None, group.Name));
+                    isValid = false;
+                }
+
                 AddSanitizedName(sanitizedGroupNames, MitsubishiTagClientEmitter.SanitizeIdentifier(group.Name), group.Name);
             }
 
@@ -261,8 +292,23 @@ public sealed class MitsubishiTagClientGenerator : IIncrementalGenerator
                 isValid = false;
             }
 
+            var seenGroupTagNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var tagName in group.TagNames)
             {
+                if (string.IsNullOrWhiteSpace(tagName))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(EmptyGroupTagReferenceDiagnostic, Location.None, group.Name));
+                    isValid = false;
+                    continue;
+                }
+
+                if (!seenGroupTagNames.Add(tagName))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(DuplicateGroupTagReferenceDiagnostic, Location.None, group.Name, tagName));
+                    isValid = false;
+                    continue;
+                }
+
                 if (!knownTags.Contains(tagName))
                 {
                     context.ReportDiagnostic(Diagnostic.Create(UnknownGroupTagDiagnostic, Location.None, group.Name, tagName));
