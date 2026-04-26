@@ -25,6 +25,7 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     private readonly SemaphoreSlim _requestGate = new(1, 1);
     private readonly IMitsubishiTransport _transport;
     private readonly IScheduler _scheduler;
+    private IReadOnlyList<string>? _serialOneCMonitorAddresses;
     private bool _disposed;
 
     /// <summary>
@@ -938,7 +939,13 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     public async Task<Responce<ushort[]>> RandomReadWordsAsync(IEnumerable<string> addresses, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(addresses);
-        var parsed = addresses.Select(address => MitsubishiDeviceAddress.Parse(address, Options.XyNotation)).ToArray();
+        var addressArray = addresses.ToArray();
+        if (IsSerialOneC())
+        {
+            return await RandomReadWordsOneCAsync(addressArray, cancellationToken).ConfigureAwait(false);
+        }
+
+        var parsed = addressArray.Select(address => MitsubishiDeviceAddress.Parse(address, Options.XyNotation)).ToArray();
         var raw = await ExecuteObservableAsync(
             () => Options.TransportKind == MitsubishiTransportKind.Serial
                 ? MitsubishiSerialProtocolEncoding.EncodeRandomReadRequest(Options, parsed)
@@ -958,7 +965,13 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     public async Task<Responce> RandomWriteWordsAsync(IEnumerable<KeyValuePair<string, ushort>> values, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(values);
-        var payload = values.Select(pair => new MitsubishiDeviceValue(MitsubishiDeviceAddress.Parse(pair.Key, Options.XyNotation), pair.Value)).ToArray();
+        var valueArray = values.ToArray();
+        if (IsSerialOneC())
+        {
+            return await RandomWriteWordsOneCAsync(valueArray, cancellationToken).ConfigureAwait(false);
+        }
+
+        var payload = valueArray.Select(pair => new MitsubishiDeviceValue(MitsubishiDeviceAddress.Parse(pair.Key, Options.XyNotation), pair.Value)).ToArray();
         var raw = await ExecuteObservableAsync(
             () => Options.TransportKind == MitsubishiTransportKind.Serial
                 ? MitsubishiSerialProtocolEncoding.EncodeRandomWriteRequest(Options, payload)
@@ -978,7 +991,13 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     public async Task<Responce> RegisterMonitorAsync(IEnumerable<string> addresses, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(addresses);
-        var payload = addresses.Select(address => MitsubishiDeviceAddress.Parse(address, Options.XyNotation)).ToArray();
+        var addressArray = addresses.ToArray();
+        if (IsSerialOneC())
+        {
+            return RegisterMonitorOneC(addressArray);
+        }
+
+        var payload = addressArray.Select(address => MitsubishiDeviceAddress.Parse(address, Options.XyNotation)).ToArray();
         var raw = await ExecuteObservableAsync(
             () => Options.TransportKind == MitsubishiTransportKind.Serial
                 ? MitsubishiSerialProtocolEncoding.EncodeMonitorRegistrationRequest(Options, payload)
@@ -995,13 +1014,15 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Raw monitor payload.</returns>
     public Task<Responce<byte[]>> ExecuteMonitorAsync(CancellationToken cancellationToken = default)
-        => ExecuteObservableAsync(
-            () => Options.TransportKind == MitsubishiTransportKind.Serial
-                ? MitsubishiSerialProtocolEncoding.EncodeExecuteMonitorRequest(Options)
-                : MitsubishiProtocolEncoding.EncodeExecuteMonitor(Options),
-            null,
-            "Execute monitor",
-            cancellationToken);
+        => IsSerialOneC()
+            ? ExecuteMonitorOneCAsync(cancellationToken)
+            : ExecuteObservableAsync(
+                () => Options.TransportKind == MitsubishiTransportKind.Serial
+                    ? MitsubishiSerialProtocolEncoding.EncodeExecuteMonitorRequest(Options)
+                    : MitsubishiProtocolEncoding.EncodeExecuteMonitor(Options),
+                null,
+                "Execute monitor",
+                cancellationToken);
 
     /// <summary>
     /// Executes a block read request.
@@ -1012,6 +1033,11 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     public Task<Responce<byte[]>> ReadBlocksAsync(MitsubishiBlockRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (IsSerialOneC())
+        {
+            return ReadBlocksOneCAsync(request, cancellationToken);
+        }
+
         return ExecuteObservableAsync(
             () => Options.TransportKind == MitsubishiTransportKind.Serial
                 ? MitsubishiSerialProtocolEncoding.EncodeBlockReadRequest(Options, request)
@@ -1030,6 +1056,11 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     public async Task<Responce> WriteBlocksAsync(MitsubishiBlockRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (IsSerialOneC())
+        {
+            return await WriteBlocksOneCAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+
         var raw = await ExecuteObservableAsync(
             () => Options.TransportKind == MitsubishiTransportKind.Serial
                 ? MitsubishiSerialProtocolEncoding.EncodeBlockWriteRequest(Options, request)
@@ -1434,6 +1465,139 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
             command == MitsubishiCommands.Unlock ? "Unlock" : "Lock",
             cancellationToken).ConfigureAwait(false);
         return raw.ToBaseResponse();
+    }
+
+    private bool IsSerialOneC()
+        => Options.TransportKind == MitsubishiTransportKind.Serial && Options.FrameType == MitsubishiFrameType.OneC;
+
+    private async Task<Responce<ushort[]>> RandomReadWordsOneCAsync(IReadOnlyList<string> addresses, CancellationToken cancellationToken)
+    {
+        if (addresses.Count == 0)
+        {
+            return new Responce<ushort[]>().Fail("At least one device must be supplied.");
+        }
+
+        var values = new List<ushort>(addresses.Count);
+        foreach (var address in addresses)
+        {
+            var read = await ReadWordsAsync(address, 1, cancellationToken).ConfigureAwait(false);
+            if (!read.IsSucceed || read.Value is null)
+            {
+                return new Responce<ushort[]>(read);
+            }
+
+            values.Add(read.Value[0]);
+        }
+
+        return new Responce<ushort[]>(values.ToArray()).EndTime();
+    }
+
+    private async Task<Responce> RandomWriteWordsOneCAsync(IReadOnlyList<KeyValuePair<string, ushort>> values, CancellationToken cancellationToken)
+    {
+        if (values.Count == 0)
+        {
+            return new Responce().Fail("At least one device value must be supplied.");
+        }
+
+        foreach (var pair in values)
+        {
+            var write = await WriteWordsAsync(pair.Key, [pair.Value], cancellationToken).ConfigureAwait(false);
+            if (!write.IsSucceed)
+            {
+                return write;
+            }
+        }
+
+        return new Responce().EndTime();
+    }
+
+    private Responce RegisterMonitorOneC(IReadOnlyList<string> addresses)
+    {
+        if (addresses.Count == 0)
+        {
+            return new Responce().Fail("At least one device must be supplied.");
+        }
+
+        foreach (var address in addresses)
+        {
+            var parsed = MitsubishiDeviceAddress.Parse(address, Options.XyNotation);
+            if (parsed.Descriptor.Kind != DeviceValueKind.Word)
+            {
+                return new Responce().Fail($"1C monitor emulation supports word devices only; '{address}' is a bit device.");
+            }
+        }
+
+        _serialOneCMonitorAddresses = addresses.ToArray();
+        PublishOperation("Register monitor 1C emulation", true, Array.Empty<byte>(), Array.Empty<byte>());
+        return new Responce().EndTime();
+    }
+
+    private async Task<Responce<byte[]>> ExecuteMonitorOneCAsync(CancellationToken cancellationToken)
+    {
+        if (_serialOneCMonitorAddresses is null || _serialOneCMonitorAddresses.Count == 0)
+        {
+            return new Responce<byte[]>().Fail("1C monitor execution requires RegisterMonitorAsync to be called first.");
+        }
+
+        var read = await RandomReadWordsOneCAsync(_serialOneCMonitorAddresses, cancellationToken).ConfigureAwait(false);
+        if (!read.IsSucceed || read.Value is null)
+        {
+            return new Responce<byte[]>(read);
+        }
+
+        var payload = Encoding.ASCII.GetBytes(string.Concat(read.Value.Select(static value => value.ToString("X4", System.Globalization.CultureInfo.InvariantCulture))));
+        return new Responce<byte[]>(read, payload);
+    }
+
+    private async Task<Responce<byte[]>> ReadBlocksOneCAsync(MitsubishiBlockRequest request, CancellationToken cancellationToken)
+    {
+        var builder = new StringBuilder();
+        foreach (var block in request.ResolvedWordBlocks)
+        {
+            var read = await ReadWordsAsync(block.Address.Original, block.Values.Length, cancellationToken).ConfigureAwait(false);
+            if (!read.IsSucceed || read.Value is null)
+            {
+                return new Responce<byte[]>(read);
+            }
+
+            builder.Append(string.Concat(read.Value.Select(static value => value.ToString("X4", System.Globalization.CultureInfo.InvariantCulture))));
+        }
+
+        foreach (var block in request.ResolvedBitBlocks)
+        {
+            var read = await ReadBitsAsync(block.Address.Original, block.Values.Length, cancellationToken).ConfigureAwait(false);
+            if (!read.IsSucceed || read.Value is null)
+            {
+                return new Responce<byte[]>(read);
+            }
+
+            builder.Append(string.Concat(read.Value.Select(static value => value ? "10" : "00")));
+        }
+
+        return new Responce<byte[]>(Encoding.ASCII.GetBytes(builder.ToString())).EndTime();
+    }
+
+    private async Task<Responce> WriteBlocksOneCAsync(MitsubishiBlockRequest request, CancellationToken cancellationToken)
+    {
+        foreach (var block in request.ResolvedWordBlocks)
+        {
+            var write = await WriteWordsAsync(block.Address.Original, block.Values.ToArray(), cancellationToken).ConfigureAwait(false);
+            if (!write.IsSucceed)
+            {
+                return write;
+            }
+        }
+
+        foreach (var block in request.ResolvedBitBlocks)
+        {
+            var write = await WriteBitsAsync(block.Address.Original, block.Values.ToArray(), cancellationToken).ConfigureAwait(false);
+            if (!write.IsSucceed)
+            {
+                return write;
+            }
+        }
+
+        return new Responce().EndTime();
     }
 
     private async Task<Responce<byte[]>> ExecuteEncodedAsync(byte[] command, int? expectedLength, string description, int maxRetries = 2, CancellationToken cancellationToken = default)

@@ -10,19 +10,6 @@ namespace MitsubishiRx.Tests;
 public sealed class MitsubishiSerialRemoteControlTests
 {
     [Test]
-    public async Task RemoteRunAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.RemoteRunAsync();
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("1C serial remote operation", StringComparison.OrdinalIgnoreCase)).IsTrue();
-    }
-
-    [Test]
     public async Task RemoteRunAsyncSerial3CFormat1EncodesExpectedRequest()
     {
         var transport = new FakeTransport([BuildAsciiAckResponse(MitsubishiFrameType.ThreeC, MitsubishiSerialMessageFormat.Format1)]);

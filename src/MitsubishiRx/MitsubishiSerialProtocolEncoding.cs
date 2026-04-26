@@ -100,7 +100,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial random read is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, MitsubishiCommands.RandomRead, 0x0000, Build1CRandomReadBody(addresses)),
             MitsubishiFrameType.ThreeC => Encode3CRandomReadRequest(options, addresses),
             MitsubishiFrameType.FourC => Encode4CRandomReadRequest(options, addresses),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -118,7 +118,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial random write is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, MitsubishiCommands.RandomWrite, 0x0000, Build1CRandomWriteBody(values)),
             MitsubishiFrameType.ThreeC => Encode3CRandomWriteRequest(options, values),
             MitsubishiFrameType.FourC => Encode4CRandomWriteRequest(options, values),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -132,7 +132,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial block read is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, MitsubishiCommands.BlockRead, 0x0000, Encoding.ASCII.GetBytes(FormatBlocksAscii(request, includeValues: false))),
             MitsubishiFrameType.ThreeC => Encode3CBlockReadRequest(options, request),
             MitsubishiFrameType.FourC => Encode4CBlockReadRequest(options, request),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -146,7 +146,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial block write is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, MitsubishiCommands.BlockWrite, 0x0000, Encoding.ASCII.GetBytes(FormatBlocksAscii(request, includeValues: true))),
             MitsubishiFrameType.ThreeC => Encode3CBlockWriteRequest(options, request),
             MitsubishiFrameType.FourC => Encode4CBlockWriteRequest(options, request),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -164,7 +164,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial monitor registration is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, MitsubishiCommands.EntryMonitorDevice, 0x0000, Build1CRandomReadBody(addresses)),
             MitsubishiFrameType.ThreeC => Encode3CMonitorRegistrationRequest(options, addresses),
             MitsubishiFrameType.FourC => Encode4CMonitorRegistrationRequest(options, addresses),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -177,7 +177,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial execute monitor is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, MitsubishiCommands.ExecuteMonitor, 0x0000, Array.Empty<byte>()),
             MitsubishiFrameType.ThreeC => Encode3CExecuteMonitorRequest(options),
             MitsubishiFrameType.FourC => Encode4CExecuteMonitorRequest(options),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -190,7 +190,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial remote operation is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, command, 0x0000, Encoding.ASCII.GetBytes(FormatRemoteOperationPayloadAscii(command, force, clearMode))),
             MitsubishiFrameType.ThreeC => Encode3CRemoteOperationRequest(options, command, force, clearMode),
             MitsubishiFrameType.FourC => Encode4CRemoteOperationRequest(options, command, force, clearMode),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -203,7 +203,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial type-name read is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, MitsubishiCommands.ReadTypeName, 0x0000, Array.Empty<byte>()),
             MitsubishiFrameType.ThreeC => Encode3CRawRequest(options, MitsubishiCommands.ReadTypeName, 0x0000, Array.Empty<byte>()),
             MitsubishiFrameType.FourC => Encode4CRawRequest(options, MitsubishiCommands.ReadTypeName, 0x0000, Array.Empty<byte>()),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -220,7 +220,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial loopback is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, MitsubishiCommands.LoopbackTest, 0x0000, BuildLoopbackBody(options, data)),
             MitsubishiFrameType.ThreeC => Encode3CRawRequest(options, MitsubishiCommands.LoopbackTest, 0x0000, BuildLoopbackBody(options, data)),
             MitsubishiFrameType.FourC => Encode4CRawRequest(options, MitsubishiCommands.LoopbackTest, 0x0000, BuildLoopbackBody(options, data)),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -233,7 +233,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("1C serial memory / extend-unit access is not implemented in this release."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, command, 0x0000, BuildMemoryAccessBody(options, command, address, length, values)),
             MitsubishiFrameType.ThreeC => Encode3CRawRequest(options, command, 0x0000, BuildMemoryAccessBody(options, command, address, length, values)),
             MitsubishiFrameType.FourC => Encode4CRawRequest(options, command, 0x0000, BuildMemoryAccessBody(options, command, address, length, values)),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -247,7 +247,7 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return options.FrameType switch
         {
-            MitsubishiFrameType.OneC => throw new NotSupportedException("Raw serial execution is not yet implemented for 1C commands."),
+            MitsubishiFrameType.OneC => Encode1CRawRequest(options, request.Command, request.Subcommand, request.ResolvedBody),
             MitsubishiFrameType.ThreeC => Encode3CRawRequest(options, request.Command, request.Subcommand, request.ResolvedBody),
             MitsubishiFrameType.FourC => Encode4CRawRequest(options, request.Command, request.Subcommand, request.ResolvedBody),
             _ => throw new NotSupportedException($"Serial encoding is not supported for frame type '{options.FrameType}'."),
@@ -523,6 +523,33 @@ internal static class MitsubishiSerialProtocolEncoding
 
         return WrapAscii(body, serial.MessageFormat);
     }
+
+    private static byte[] Encode1CRawRequest(MitsubishiClientOptions options, ushort command, ushort subcommand, IReadOnlyList<byte> body)
+    {
+        EnsureAscii(options);
+        var serial = options.ResolvedSerial;
+        var payload = body.Count == 0 ? string.Empty : Encoding.ASCII.GetString(body.ToArray());
+        var requestBody = string.Concat(
+            FormatAsciiByte(serial.StationNumber),
+            FormatAsciiByte(serial.PcNumber),
+            command.ToString("X4", CultureInfo.InvariantCulture),
+            subcommand.ToString("X4", CultureInfo.InvariantCulture),
+            payload);
+
+        return WrapAscii(requestBody, serial.MessageFormat);
+    }
+
+    private static byte[] Build1CRandomReadBody(IReadOnlyList<MitsubishiDeviceAddress> addresses)
+        => Encoding.ASCII.GetBytes(string.Concat(
+            FormatAsciiUInt16(checked((ushort)addresses.Count)),
+            "0000",
+            string.Concat(addresses.Select(static address => FormatDeviceAddressModern(address, address.Descriptor)))));
+
+    private static byte[] Build1CRandomWriteBody(IReadOnlyList<MitsubishiDeviceValue> values)
+        => Encoding.ASCII.GetBytes(string.Concat(
+            FormatAsciiUInt16(checked((ushort)values.Count)),
+            "0000",
+            string.Concat(values.Select(static value => FormatDeviceAddressModern(value.Address, value.Address.Descriptor) + value.Value.ToString("X4", CultureInfo.InvariantCulture)))));
 
     private static byte[] Encode3CWriteRequest(MitsubishiClientOptions options, MitsubishiDeviceAddress address, IReadOnlyList<ushort> values)
     {

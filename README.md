@@ -349,18 +349,18 @@ Current serial implementation status:
 | Batch word write over serial | **Implemented** |
 | Batch bit read over serial | **Implemented** |
 | Batch bit write over serial | **Implemented** |
-| Random word read over serial | **Implemented for `3C` / `4C`; `1C` reports not supported** |
-| Random word write over serial | **Implemented for `3C` / `4C`; `1C` reports not supported** |
+| Random word read over serial | **Implemented for `1C`, `3C`, and `4C`** |
+| Random word write over serial | **Implemented for `1C`, `3C`, and `4C`** |
 | `1C` ASCII format 1/4 decode path | **Implemented** |
 | `3C` ASCII format 1/4 decode path | **Implemented** |
 | `4C` ASCII and binary format 5 decode path | **Implemented** |
-| Serial block read/write | **Implemented for `3C` / `4C`; `1C` reports not supported** |
-| Serial monitor registration/execution | **Implemented for `3C` / `4C`; `1C` monitor registration reports not supported** |
-| Serial remote control commands | **Implemented for `3C` / `4C`; `1C` reports not supported** |
-| Serial type-name read | **Implemented for tested `3C` ASCII / `4C` format 5; `1C` reports not supported** |
-| Serial loopback | **Implemented for tested `3C` ASCII / `4C` format 5; `1C` reports not supported** |
-| Serial memory / extend-unit read-write | **Implemented for tested `3C` ASCII / `4C` format 5; `1C` reports not supported** |
-| Raw serial command execution | **Implemented for tested `3C` ASCII / `4C` format 5; `1C` reports not supported** |
+| Serial block read/write | **Implemented for `1C`, `3C`, and `4C`** |
+| Serial monitor registration/execution | **Implemented for `1C`, `3C`, and `4C`** |
+| Serial remote control commands | **Implemented for `1C`, `3C`, and `4C`** |
+| Serial type-name read | **Implemented for `1C`, tested `3C` ASCII, and `4C` format 5** |
+| Serial loopback | **Implemented for `1C`, tested `3C` ASCII, and `4C` format 5** |
+| Serial memory / extend-unit read-write | **Implemented for `1C`, tested `3C` ASCII, and `4C` format 5** |
+| Raw serial command execution | **Implemented for `1C`, tested `3C` ASCII, and `4C` format 5** |
 
 ---
 
@@ -1914,7 +1914,7 @@ var serialEndpoint = new MitsubishiClientOptions(
 
 ### Serial coverage note
 
-The quick map lists the full public API surface. Current serial support is narrower than Ethernet support. At this stage, the verified serial operations are **batch word read** via `ReadWordsAsync(address, points)`, **batch word write** via `WriteWordsAsync(address, values)`, **batch bit read** via `ReadBitsAsync(address, points)`, **batch bit write** via `WriteBitsAsync(address, values)`, **random word read/write** via `RandomReadWordsAsync(addresses)` / `RandomWriteWordsAsync(values)`, **block read/write** via `ReadBlocksAsync(request)` / `WriteBlocksAsync(request)`, **monitor registration/execution** via `RegisterMonitorAsync(addresses)` / `ExecuteMonitorAsync()`, and **remote control** via `RemoteRunAsync(force, clearMode)`, `RemoteStopAsync()`, `RemotePauseAsync()`, `RemoteLatchClearAsync()`, and `RemoteResetAsync()` using `1C`, `3C`, or `4C` plus `MitsubishiTransportKind.Serial`. For serial random, block, monitor, and remote-control operations in the current implementation, `1C` reports not supported while `3C` and `4C` are covered by tests.
+The quick map lists the full public API surface. Serial support covers `1C`, `3C`, and `4C` paths through `MitsubishiTransportKind.Serial`. Verified serial operations include **batch word read** via `ReadWordsAsync(address, points)`, **batch word write** via `WriteWordsAsync(address, values)`, **batch bit read** via `ReadBitsAsync(address, points)`, **batch bit write** via `WriteBitsAsync(address, values)`, **random word read/write** via `RandomReadWordsAsync(addresses)` / `RandomWriteWordsAsync(values)`, **block read/write** via `ReadBlocksAsync(request)` / `WriteBlocksAsync(request)`, **monitor registration/execution** via `RegisterMonitorAsync(addresses)` / `ExecuteMonitorAsync()`, **remote control** via `RemoteRunAsync(force, clearMode)`, `RemoteStopAsync()`, `RemotePauseAsync()`, `RemoteLatchClearAsync()`, and `RemoteResetAsync()`, **type-name read**, **loopback**, **memory / extend-unit access**, and **raw command execution**. For `1C`, random, block, and monitor operations are implemented as deterministic client-side compositions over the verified 1C batch read/write path.
 
 ## Complete API reference
 
@@ -1928,7 +1928,7 @@ This section is the authoritative quick reference for the public API exposed by 
 - Optional `CancellationToken` parameters cancel the client-side request wait; PLC command support and PLC-side execution semantics remain target dependent.
 - Address-based methods accept Mitsubishi device strings such as `D100`, `M10`, `X20`, `W10`, or `ZR200`.
 - Tag-based methods require `client.TagDatabase` to be assigned first.
-- Ethernet `1E` paths have a smaller command set than `3E` / `4E`. Serial `1C` is intentionally narrower than serial `3C` / `4C`; see the serial coverage notes above.
+- Ethernet `1E` paths have a smaller command set than `3E` / `4E`. Serial `1C`, `3C`, and `4C` paths cover the public serial API surface; see the serial coverage notes above for the 1C composition behavior.
 
 ```csharp
 var result = await client.ReadWordsAsync("D100", 2);
@@ -2439,39 +2439,29 @@ If communication succeeds on one endpoint but not another:
 - verify TCP vs UDP vs serial configuration on the PLC/module side
 - for serial, also verify `MitsubishiSerialMessageFormat` (`Format1`, `Format4`, `Format5`) and serial-port settings such as baud rate, parity, stop bits, and handshake
 
-### Serial support limitations
+### Serial support coverage
 
-Current serial implementation is intentionally narrower than Ethernet support. If a serial operation fails, first confirm that the current serial implementation actually covers that scenario.
-
-Currently implemented and verified for serial:
+Current serial implementation is verified for:
 - reactive SerialPortRx-based transport
 - serial batch word reads through `ReadWordsAsync(address, points)`
 - serial batch word writes through `WriteWordsAsync(address, values)`
 - serial batch bit reads through `ReadBitsAsync(address, points)`
 - serial batch bit writes through `WriteBitsAsync(address, values)`
-- serial random word reads through `RandomReadWordsAsync(addresses)` for `3C` / `4C`
-- serial random word writes through `RandomWriteWordsAsync(values)` for `3C` / `4C`
-- serial block reads through `ReadBlocksAsync(request)` for `3C` / `4C`
-- serial block writes through `WriteBlocksAsync(request)` for `3C` / `4C`
-- serial monitor registration through `RegisterMonitorAsync(addresses)` for `3C` / `4C`
-- serial monitor execution through `ExecuteMonitorAsync()` for `3C` / `4C`
-- serial remote RUN/STOP/PAUSE/LATCH CLEAR/RESET through `RemoteRunAsync(...)`, `RemoteStopAsync()`, `RemotePauseAsync()`, `RemoteLatchClearAsync()`, and `RemoteResetAsync()` for `3C` / `4C`
-- serial type-name read through `ReadTypeNameAsync()` for tested `3C` ASCII / `4C` format 5
-- serial loopback through `LoopbackAsync(data)` for tested `3C` ASCII / `4C` format 5
-- serial memory and extend-unit access through `ReadMemoryAsync(...)` / `WriteMemoryAsync(...)` for tested `3C` ASCII / `4C` format 5
-- raw serial command execution through `ExecuteRawAsync(request)` for tested `3C` ASCII / `4C` format 5
+- serial random word reads through `RandomReadWordsAsync(addresses)` for `1C`, `3C`, and `4C`
+- serial random word writes through `RandomWriteWordsAsync(values)` for `1C`, `3C`, and `4C`
+- serial block reads through `ReadBlocksAsync(request)` for `1C`, `3C`, and `4C`
+- serial block writes through `WriteBlocksAsync(request)` for `1C`, `3C`, and `4C`
+- serial monitor registration through `RegisterMonitorAsync(addresses)` for `1C`, `3C`, and `4C`
+- serial monitor execution through `ExecuteMonitorAsync()` for `1C`, `3C`, and `4C`
+- serial remote RUN/STOP/PAUSE/LATCH CLEAR/RESET through `RemoteRunAsync(...)`, `RemoteStopAsync()`, `RemotePauseAsync()`, `RemoteLatchClearAsync()`, and `RemoteResetAsync()` for `1C`, `3C`, and `4C`
+- serial type-name read through `ReadTypeNameAsync()` for `1C`, tested `3C` ASCII, and `4C` format 5
+- serial loopback through `LoopbackAsync(data)` for `1C`, tested `3C` ASCII, and `4C` format 5
+- serial memory and extend-unit access through `ReadMemoryAsync(...)` / `WriteMemoryAsync(...)` for `1C`, tested `3C` ASCII, and `4C` format 5
+- raw serial command execution through `ExecuteRawAsync(request)` for `1C`, tested `3C` ASCII, and `4C` format 5
 - `1C`, `3C`, and `4C` frame selection
 - serial ASCII format 1/4 and 4C binary format 5 decode paths
 
-Not yet implemented for serial:
-- `1C` random operations
-- `1C` block operations
-- `1C` monitor registration/execution
-- `1C` remote control commands
-- `1C` type-name read
-- `1C` loopback
-- `1C` memory / extend-unit commands
-- `1C` raw command execution
+`1C` random, block, and monitor operations are implemented by composing the verified 1C batch read/write requests. This keeps legacy computer-link paths usable even when the target does not provide native multi-device command forms.
 
 ### Remote operations do not execute
 

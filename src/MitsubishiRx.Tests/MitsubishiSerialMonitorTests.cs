@@ -10,19 +10,6 @@ namespace MitsubishiRx.Tests;
 public sealed class MitsubishiSerialMonitorTests
 {
     [Test]
-    public async Task RegisterMonitorAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.RegisterMonitorAsync(["D100", "D300"]);
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("1C serial monitor registration", StringComparison.OrdinalIgnoreCase)).IsTrue();
-    }
-
-    [Test]
     public async Task RegisterMonitorAsyncSerial3CFormat1EncodesExpectedRequest()
     {
         var transport = new FakeTransport([BuildAsciiAckResponse(MitsubishiFrameType.ThreeC, MitsubishiSerialMessageFormat.Format1)]);

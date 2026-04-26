@@ -10,19 +10,6 @@ namespace MitsubishiRx.Tests;
 public sealed class MitsubishiSerialParityTests
 {
     [Test]
-    public async Task ReadTypeNameAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.ReadTypeNameAsync();
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("1C serial type-name", StringComparison.OrdinalIgnoreCase)).IsTrue();
-    }
-
-    [Test]
     public async Task ReadTypeNameAsyncSerial3CFormat1EncodesExpectedRequestAndParsesResponse()
     {
         var transport = new FakeTransport([BuildAsciiPayloadResponse(MitsubishiFrameType.ThreeC, MitsubishiSerialMessageFormat.Format1, "FX5U0001")]);
@@ -53,19 +40,6 @@ public sealed class MitsubishiSerialParityTests
     }
 
     [Test]
-    public async Task LoopbackAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.LoopbackAsync(Encoding.ASCII.GetBytes("PING"));
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("1C serial loopback", StringComparison.OrdinalIgnoreCase)).IsTrue();
-    }
-
-    [Test]
     public async Task LoopbackAsyncSerial3CFormat1EncodesExpectedRequestAndReturnsEchoedPayload()
     {
         var transport = new FakeTransport([BuildAsciiPayloadResponse(MitsubishiFrameType.ThreeC, MitsubishiSerialMessageFormat.Format1, "0004PING")]);
@@ -91,19 +65,6 @@ public sealed class MitsubishiSerialParityTests
         await Assert.That(result.IsSucceed).IsTrue();
         await Assert.That(Encoding.ASCII.GetString(result.Value!)).IsEqualTo("PING");
         await Assert.That(Convert.ToHexString(transport.Requests[0].Payload)).IsEqualTo("10021200F80000FFFF03000019060000040050494E4710033543");
-    }
-
-    [Test]
-    public async Task ReadMemoryAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.ReadMemoryAsync(MitsubishiCommands.MemoryRead, 0x2000, 2);
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("1C serial memory", StringComparison.OrdinalIgnoreCase)).IsTrue();
     }
 
     [Test]
@@ -158,19 +119,6 @@ public sealed class MitsubishiSerialParityTests
 
         await Assert.That(result.IsSucceed).IsTrue();
         await Assert.That(Convert.ToHexString(transport.Requests[0].Payload)).IsEqualTo("10021400F80000FFFF03000013160000002002003412785610033643");
-    }
-
-    [Test]
-    public async Task ExecuteRawAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.ExecuteRawAsync(new MitsubishiRawCommandRequest(0x1234, 0xABCD, Encoding.ASCII.GetBytes("BEEF"), "Custom raw"));
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("Raw serial", StringComparison.OrdinalIgnoreCase)).IsTrue();
     }
 
     [Test]

@@ -10,36 +10,6 @@ namespace MitsubishiRx.Tests;
 public sealed class MitsubishiSerialRandomTests
 {
     [Test]
-    public async Task RandomReadWordsAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.RandomReadWordsAsync(["D100", "D300"]);
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("1C serial random read", StringComparison.OrdinalIgnoreCase)).IsTrue();
-    }
-
-    [Test]
-    public async Task RandomWriteWordsAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.RandomWriteWordsAsync(
-        [
-            new KeyValuePair<string, ushort>("D100", 0x1234),
-            new KeyValuePair<string, ushort>("D300", 0x5678),
-        ]);
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("1C serial random write", StringComparison.OrdinalIgnoreCase)).IsTrue();
-    }
-
-    [Test]
     public async Task RandomReadWordsAsyncSerial3CFormat1EncodesExpectedRequestAndParsesResponse()
     {
         var transport = new FakeTransport([BuildAsciiRandomReadResponse(MitsubishiFrameType.ThreeC, MitsubishiSerialMessageFormat.Format1, "12345678")]);

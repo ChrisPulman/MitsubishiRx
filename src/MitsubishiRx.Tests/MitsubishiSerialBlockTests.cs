@@ -10,32 +10,6 @@ namespace MitsubishiRx.Tests;
 public sealed class MitsubishiSerialBlockTests
 {
     [Test]
-    public async Task ReadBlocksAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.ReadBlocksAsync(CreateBlockRequest());
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("1C serial block read", StringComparison.OrdinalIgnoreCase)).IsTrue();
-    }
-
-    [Test]
-    public async Task WriteBlocksAsyncSerial1CReportsNotSupported()
-    {
-        var transport = new FakeTransport(Array.Empty<byte[]>());
-        var options = CreateSerialOptions(MitsubishiFrameType.OneC, CommunicationDataCode.Ascii, MitsubishiSerialMessageFormat.Format1);
-        var client = new global::MitsubishiRx.MitsubishiRx(options, transport, Scheduler.Immediate);
-
-        var result = await client.WriteBlocksAsync(CreateBlockRequest());
-
-        await Assert.That(result.IsSucceed).IsFalse();
-        await Assert.That(result.Err.Contains("1C serial block write", StringComparison.OrdinalIgnoreCase)).IsTrue();
-    }
-
-    [Test]
     public async Task ReadBlocksAsyncSerial3CFormat1EncodesExpectedRequestAndReturnsRawPayload()
     {
         var transport = new FakeTransport([BuildAsciiBlockReadResponse(MitsubishiFrameType.ThreeC, MitsubishiSerialMessageFormat.Format1, "11223344100010")]);
