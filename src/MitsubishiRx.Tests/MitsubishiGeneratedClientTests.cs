@@ -642,8 +642,10 @@ public sealed class MitsubishiGeneratedClientTests
             .Select(static assembly => MetadataReference.CreateFromFile(assembly.Location))
             .Cast<MetadataReference>()
             .ToList();
-        references.Add(MetadataReference.CreateFromFile(generatorAssembly.Location));
-        references.Add(MetadataReference.CreateFromFile(typeof(System.Linq.Expressions.Expression).Assembly.Location));
+        AddReference(references, generatorAssembly.Location);
+        AddReference(references, typeof(global::MitsubishiRx.MitsubishiRx).Assembly.Location);
+        AddReference(references, typeof(System.Linq.Expressions.Expression).Assembly.Location);
+        AddReference(references, typeof(System.Reactive.Linq.Observable).Assembly.Location);
 
         var compilation = CSharpCompilation.Create(
             assemblyName: "GeneratorTests",
@@ -668,6 +670,16 @@ public sealed class MitsubishiGeneratedClientTests
             .ToArray();
 
         return (generated, diagnostics);
+    }
+
+    private static void AddReference(List<MetadataReference> references, string assemblyLocation)
+    {
+        if (references.OfType<PortableExecutableReference>().Any(reference => string.Equals(reference.FilePath, assemblyLocation, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        references.Add(MetadataReference.CreateFromFile(assemblyLocation));
     }
 
     private static string ToLiteral(string value)
