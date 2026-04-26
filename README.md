@@ -9,6 +9,23 @@ This README is the **primary usage guide** for the library. It explains:
 - how to build and import a **tag database** so application code can use **tag names instead of PLC addresses**
 - what CSV format is required to initialize the tag database
 
+## Documentation map
+
+Use this README as the complete in-repository documentation source:
+
+| Need | Start here |
+|---|---|
+| Install and choose package basics | [Install](#install) |
+| Select PLC family, frame, transport, data encoding, serial format, or X/Y notation | [Supported PLC families and how to choose settings](#supported-plc-families-and-how-to-choose-settings) |
+| Configure `MitsubishiClientOptions` and `MitsubishiSerialOptions` | [Core configuration](#core-configuration) |
+| Connect, disconnect, and monitor connection state | [Connection lifecycle](#connection-lifecycle) |
+| Use every high-level PLC operation with C# examples | [Feature guide: every public operation](#feature-guide-every-public-operation) |
+| Configure symbolic tags, typed helpers, groups, schema files, validation, hot reload, diffs, and rollout policies | [Tag database: use tag names instead of PLC addresses](#tag-database-use-tag-names-instead-of-plc-addresses) |
+| Match APIs to PLC families and endpoint types | [PLC-family-specific usage guidance](#plc-family-specific-usage-guidance) |
+| Find concise feature-to-method mapping | [Feature-to-API quick map](#feature-to-api-quick-map) |
+| Look up signatures, return types, models, enums, constants, advanced extension points, and generated APIs | [Complete API reference](#complete-api-reference) |
+| Diagnose common setup and communication problems | [Troubleshooting notes](#troubleshooting-notes) |
+
 ---
 
 ## Install
@@ -329,11 +346,21 @@ Current serial implementation status:
 | Serial frame modeling (`1C`, `3C`, `4C`) | **Implemented** |
 | Serial option/configuration surface | **Implemented** |
 | Batch word read over serial | **Implemented** |
+| Batch word write over serial | **Implemented** |
+| Batch bit read over serial | **Implemented** |
+| Batch bit write over serial | **Implemented** |
+| Random word read over serial | **Implemented for `1C`, `3C`, and `4C`** |
+| Random word write over serial | **Implemented for `1C`, `3C`, and `4C`** |
 | `1C` ASCII format 1/4 decode path | **Implemented** |
 | `3C` ASCII format 1/4 decode path | **Implemented** |
 | `4C` ASCII and binary format 5 decode path | **Implemented** |
-| Serial writes / random / block / monitor / remote control / memory operations | **Not yet implemented** |
-| Raw serial command execution | **Not yet implemented** |
+| Serial block read/write | **Implemented for `1C`, `3C`, and `4C`** |
+| Serial monitor registration/execution | **Implemented for `1C`, `3C`, and `4C`** |
+| Serial remote control commands | **Implemented for `1C`, `3C`, and `4C`** |
+| Serial type-name read | **Implemented for `1C`, tested `3C` ASCII, and `4C` format 5** |
+| Serial loopback | **Implemented for `1C`, tested `3C` ASCII, and `4C` format 5** |
+| Serial memory / extend-unit read-write | **Implemented for `1C`, tested `3C` ASCII, and `4C` format 5** |
+| Raw serial command execution | **Implemented for `1C`, tested `3C` ASCII, and `4C` format 5** |
 
 ---
 
@@ -772,6 +799,127 @@ groupTrigger.OnNext(Unit.Default);
 ```
 
 These grouped reactive APIs are useful for HMI/dashboard polling loops because they keep the application written against stable symbolic names instead of raw PLC addresses.
+
+### Reactive hot shared value streams
+
+```csharp
+using var reactiveWords = client
+    .ObserveReactiveWords("D100", 2, TimeSpan.FromSeconds(1))
+    .Subscribe(value =>
+    {
+        if (value.Quality == MitsubishiReactiveQuality.Good && value.Value is not null)
+        {
+            Console.WriteLine($"Words: {string.Join(", ", value.Value)} @ {value.TimestampUtc:u}");
+        }
+    });
+```
+
+```csharp
+using var reactiveTag = client
+    .ObserveReactiveTag<float>("MotorSpeed", TimeSpan.FromMilliseconds(250))
+    .Subscribe(value =>
+    {
+        if (value.Quality == MitsubishiReactiveQuality.Good)
+        {
+            Console.WriteLine($"MotorSpeed={value.Value}");
+        }
+    });
+```
+
+```csharp
+using var reactiveGroup = client
+    .ObserveReactiveTagGroup("Line1Overview", TimeSpan.FromSeconds(1))
+    .Subscribe(value =>
+    {
+        if (value.Quality == MitsubishiReactiveQuality.Good && value.Value is not null)
+        {
+            Console.WriteLine(value.Value.GetRequired<uint>("TotalCount"));
+        }
+    });
+```
+
+These planner-backed reactive APIs are shared/hot streams with replay of the latest value and teardown when the final subscriber unsubscribes.
+
+### Reactive write pipelines
+
+```csharp
+var setpointWrites = client.CreateReactiveTagWritePipeline<float>(
+    "Setpoint",
+    MitsubishiReactiveWriteMode.LatestWins,
+    coalescingWindow: TimeSpan.FromMilliseconds(100));
+
+using var writeResults = setpointWrites.Results.Subscribe(result =>
+    Console.WriteLine($"Write success={result.Response.IsSucceed} payload={result.Payload}"));
+
+setpointWrites.Enqueue(12.5f);
+setpointWrites.Enqueue(13.0f);
+```
+
+Supported modes:
+- `Queued`
+- `LatestWins`
+- `Coalescing`
+
+### Generated typed client surface
+
+You can attach schema JSON for the generator using `MitsubishiTagClientSchemaAttribute`, then use the generated typed facade from the client instance via the generated extension method. When a consuming project references the main `MitsubishiRx` package, the bundled analyzer automatically supplies the generator — no separate generator package reference is required.
+
+```csharp
+using MitsubishiRx;
+
+[MitsubishiTagClientSchema(
+    """
+    {
+      "tags": [
+        { "name": "MotorSpeed", "address": "D100", "dataType": "Float" },
+        { "name": "Mode", "address": "D101", "dataType": "UInt16" }
+      ],
+      "groups": [
+        { "name": "Line1", "tagNames": ["MotorSpeed", "Mode"] }
+      ]
+    }
+    """)]
+internal sealed class PlcSchema;
+```
+
+```csharp
+var speed = await client.Generated().Tags.MotorSpeed.ReadAsync();
+await client.Generated().Tags.Mode.WriteAsync(2);
+
+using var generatedTagSub = client.Generated().Tags.MotorSpeed.Observe(TimeSpan.FromMilliseconds(250))
+    .Subscribe(value => Console.WriteLine(value.Value));
+
+var line1 = await client.Generated().Groups.Line1.ReadAsync();
+Console.WriteLine(line1.Value?.Mode);
+
+using var generatedGroupSub = client.Generated().Groups.Line1.Observe(TimeSpan.FromSeconds(1))
+    .Subscribe(value => Console.WriteLine(value.Value?.Mode));
+
+var optionalLine1 = await client.Generated().Groups.Line1.ReadOptionalAsync();
+Console.WriteLine(optionalLine1.Value?.Mode);
+
+using var optionalGeneratedGroupSub = client.Generated().Groups.Line1.ObserveOptional(TimeSpan.FromSeconds(1))
+    .Subscribe(value => Console.WriteLine(value.Value?.Mode));
+
+if (line1.Value is not null)
+{
+    await client.Generated().Groups.Line1.WriteAsync(line1.Value);
+}
+```
+
+Generated accessors currently cover typed tag read/write/observe plus generated typed group snapshot read/write/observe for schema-defined tags and groups, with optional group read/observe variants when a snapshot may be incomplete. The main `MitsubishiRx` package bundles the analyzer automatically; consumers do **not** need a separate generator package reference.
+
+The generator now also reports compile-time schema diagnostics for common authoring mistakes before any generated API is emitted:
+- `MRTXGEN002` — duplicate tag names
+- `MRTXGEN003` — groups referencing unknown tag names
+- `MRTXGEN004` — unsupported tag `dataType` values outside the currently generated set (`Bit`, `Word`, `DWord`, `Float`, `String`, `Int16`, `UInt16`, `Int32`, `UInt32`)
+- `MRTXGEN005` — tag or group names that collapse to the same generated identifier after sanitization
+- `MRTXGEN006` — empty tag names
+- `MRTXGEN007` — empty group names
+- `MRTXGEN008` — groups with no member tags
+- `MRTXGEN009` — duplicate group names
+- `MRTXGEN010` — empty tag references inside a group membership list
+- `MRTXGEN011` — duplicate tag references inside a group membership list
 
 ### Operation logs and sampled diagnostics
 
@@ -1766,7 +1914,505 @@ var serialEndpoint = new MitsubishiClientOptions(
 
 ### Serial coverage note
 
-The quick map lists the full public API surface. Current serial support is narrower than Ethernet support. At this stage, the verified serial operation is **batch word read** via `ReadWordsAsync(address, points)` using `1C`, `3C`, or `4C` plus `MitsubishiTransportKind.Serial`.
+The quick map lists the full public API surface. Serial support covers `1C`, `3C`, and `4C` paths through `MitsubishiTransportKind.Serial`. Verified serial operations include **batch word read** via `ReadWordsAsync(address, points)`, **batch word write** via `WriteWordsAsync(address, values)`, **batch bit read** via `ReadBitsAsync(address, points)`, **batch bit write** via `WriteBitsAsync(address, values)`, **random word read/write** via `RandomReadWordsAsync(addresses)` / `RandomWriteWordsAsync(values)`, **block read/write** via `ReadBlocksAsync(request)` / `WriteBlocksAsync(request)`, **monitor registration/execution** via `RegisterMonitorAsync(addresses)` / `ExecuteMonitorAsync()`, **remote control** via `RemoteRunAsync(force, clearMode)`, `RemoteStopAsync()`, `RemotePauseAsync()`, `RemoteLatchClearAsync()`, and `RemoteResetAsync()`, **type-name read**, **loopback**, **memory / extend-unit access**, and **raw command execution**. For `1C`, random, block, and monitor operations are implemented as deterministic client-side compositions over the verified 1C batch read/write path.
+
+## Complete API reference
+
+This section is the authoritative quick reference for the public API exposed by the package. Earlier sections explain the recommended workflow and provide larger examples; this section gives signatures, return types, and when to use each member.
+
+### API conventions
+
+- All async PLC operations return `Task<Responce>` or `Task<Responce<T>>`.
+- Check `IsSucceed` before using `Value`.
+- Failure details are available through `Err`, `ErrCode`, `ErrList`, and `Exception`.
+- Optional `CancellationToken` parameters cancel the client-side request wait; PLC command support and PLC-side execution semantics remain target dependent.
+- Address-based methods accept Mitsubishi device strings such as `D100`, `M10`, `X20`, `W10`, or `ZR200`.
+- Tag-based methods require `client.TagDatabase` to be assigned first.
+- Ethernet `1E` paths have a smaller command set than `3E` / `4E`. Serial `1C`, `3C`, and `4C` paths cover the public serial API surface; see the serial coverage notes above for the 1C composition behavior.
+
+```csharp
+var result = await client.ReadWordsAsync("D100", 2);
+if (!result.IsSucceed)
+{
+    Console.WriteLine($"PLC read failed: {result.Err} code={result.ErrCode}");
+    return;
+}
+
+ushort firstWord = result.Value![0];
+```
+
+### Client construction and state
+
+| API | Signature | Purpose |
+|---|---|---|
+| Modern constructor | `MitsubishiRx(MitsubishiClientOptions options, IMitsubishiTransport? transport = null, IScheduler? scheduler = null)` | Preferred constructor. Pass options and optionally inject a custom transport or scheduler for tests/advanced integrations. |
+| Legacy constructor | `MitsubishiRx(CpuType cpuType, string ip, int port, int timeout = 1500)` | Compatibility shortcut for older socket-style code. Prefer `MitsubishiClientOptions` for new code. |
+| `Options` | `MitsubishiClientOptions Options { get; }` | Effective immutable client options. |
+| `TagDatabase` | `MitsubishiTagDatabase? TagDatabase { get; set; }` | Optional symbolic tag schema used by tag/group/generated APIs. |
+| `Connected` | `bool Connected { get; }` | Current transport connection flag. |
+| `ConnectionStates` | `IObservable<MitsubishiConnectionState> ConnectionStates { get; }` | Reactive connection-state stream. |
+| `OperationLogs` | `IObservable<MitsubishiOperationLog> OperationLogs { get; }` | Request/response log stream for diagnostics and audit. |
+
+```csharp
+await using var client = new MitsubishiRx.MitsubishiRx(options);
+client.TagDatabase = MitsubishiTagDatabase.Load("plc-tags.yaml");
+
+using var stateSubscription = client.ConnectionStates.Subscribe(state => Console.WriteLine(state));
+```
+
+### Connection lifecycle
+
+| API | Signature | Purpose |
+|---|---|---|
+| `Open` | `Responce Open()` | Synchronous open wrapper. |
+| `OpenAsync` | `Task<Responce> OpenAsync(CancellationToken cancellationToken = default)` | Opens TCP/UDP/serial transport. |
+| `Close` | `Responce Close()` | Synchronous close wrapper. |
+| `CloseAsync` | `Task<Responce> CloseAsync(CancellationToken cancellationToken = default)` | Closes the transport. |
+| `Dispose` | `void Dispose()` | Disposes transport, subscriptions, and reactive caches. |
+| `DisposeAsync` | `ValueTask DisposeAsync()` | Async disposal path; preferred with `await using`. |
+
+```csharp
+var open = await client.OpenAsync();
+if (!open.IsSucceed)
+{
+    throw new InvalidOperationException(open.Err);
+}
+
+await client.CloseAsync();
+```
+
+### Core address-based PLC operations
+
+| API | Signature | Returns | Purpose |
+|---|---|---|---|
+| `ReadWordsAsync` | `Task<Responce<ushort[]>> ReadWordsAsync(string address, int points, CancellationToken cancellationToken = default)` | Word values | Batch word read from consecutive devices. |
+| `WriteWordsAsync` | `Task<Responce> WriteWordsAsync(string address, IReadOnlyList<ushort> values, CancellationToken cancellationToken = default)` | Completion | Batch word write. |
+| `ReadBitsAsync` | `Task<Responce<bool[]>> ReadBitsAsync(string address, int points, CancellationToken cancellationToken = default)` | Bit values | Batch bit read. |
+| `WriteBitsAsync` | `Task<Responce> WriteBitsAsync(string address, IReadOnlyList<bool> values, CancellationToken cancellationToken = default)` | Completion | Batch bit write. |
+| `RandomReadWordsAsync` | `Task<Responce<ushort[]>> RandomReadWordsAsync(IEnumerable<string> addresses, CancellationToken cancellationToken = default)` | Word values in request order | Sparse word read. |
+| `RandomWriteWordsAsync` | `Task<Responce> RandomWriteWordsAsync(IEnumerable<KeyValuePair<string, ushort>> values, CancellationToken cancellationToken = default)` | Completion | Sparse word write. |
+| `RegisterMonitorAsync` | `Task<Responce> RegisterMonitorAsync(IEnumerable<string> addresses, CancellationToken cancellationToken = default)` | Completion | Registers devices for later monitor execution. |
+| `ExecuteMonitorAsync` | `Task<Responce<byte[]>> ExecuteMonitorAsync(CancellationToken cancellationToken = default)` | Raw monitor payload | Executes the registered monitor. |
+| `ReadBlocksAsync` | `Task<Responce<byte[]>> ReadBlocksAsync(MitsubishiBlockRequest request, CancellationToken cancellationToken = default)` | Raw block payload | Reads multiple word/bit blocks. |
+| `WriteBlocksAsync` | `Task<Responce> WriteBlocksAsync(MitsubishiBlockRequest request, CancellationToken cancellationToken = default)` | Completion | Writes multiple word/bit blocks. |
+| `ReadTypeNameAsync` | `Task<Responce<MitsubishiTypeName>> ReadTypeNameAsync(CancellationToken cancellationToken = default)` | PLC model information | Reads CPU/module type name and code. |
+| `RemoteRunAsync` | `Task<Responce> RemoteRunAsync(bool force = true, bool clearMode = false, CancellationToken cancellationToken = default)` | Completion | Issues remote RUN. |
+| `RemoteStopAsync` | `Task<Responce> RemoteStopAsync(CancellationToken cancellationToken = default)` | Completion | Issues remote STOP. |
+| `RemotePauseAsync` | `Task<Responce> RemotePauseAsync(CancellationToken cancellationToken = default)` | Completion | Issues remote PAUSE. |
+| `RemoteLatchClearAsync` | `Task<Responce> RemoteLatchClearAsync(CancellationToken cancellationToken = default)` | Completion | Clears latched device state where supported. |
+| `RemoteResetAsync` | `Task<Responce> RemoteResetAsync(CancellationToken cancellationToken = default)` | Completion | Issues remote RESET. |
+| `UnlockAsync` | `Task<Responce> UnlockAsync(string password, CancellationToken cancellationToken = default)` | Completion | Remote password unlock. |
+| `LockAsync` | `Task<Responce> LockAsync(string password, CancellationToken cancellationToken = default)` | Completion | Remote password lock. |
+| `ClearErrorAsync` | `Task<Responce> ClearErrorAsync(CancellationToken cancellationToken = default)` | Completion | Clears error/LED indication where supported. |
+| `LoopbackAsync` | `Task<Responce<byte[]>> LoopbackAsync(byte[] data, CancellationToken cancellationToken = default)` | Echoed payload | Link/protocol loopback test. |
+| `ReadMemoryAsync` | `Task<Responce<ushort[]>> ReadMemoryAsync(ushort command, ushort address, int length, CancellationToken cancellationToken = default)` | Word values | Memory or intelligent-module buffer read. |
+| `WriteMemoryAsync` | `Task<Responce> WriteMemoryAsync(ushort command, ushort address, IReadOnlyList<ushort> values, CancellationToken cancellationToken = default)` | Completion | Memory or intelligent-module buffer write. |
+| `ExecuteRawAsync` | `Task<Responce<byte[]>> ExecuteRawAsync(MitsubishiRawCommandRequest request, CancellationToken cancellationToken = default)` | Raw decoded payload | Advanced raw MC/SLMP command execution. |
+
+```csharp
+var blocks = new MitsubishiBlockRequest(
+    WordBlocks: [new MitsubishiWordBlock(MitsubishiDeviceAddress.Parse("D100"), new ushort[4])],
+    BitBlocks: [new MitsubishiBitBlock(MitsubishiDeviceAddress.Parse("M10"), new bool[8])]);
+
+var blockPayload = await client.ReadBlocksAsync(blocks);
+```
+
+### Low-level compatibility methods
+
+These methods exist for compatibility with older socket-style consumers. Prefer the typed high-level APIs for new code because they apply frame-specific encoding/decoding and diagnostics consistently.
+
+| API | Signature | Purpose |
+|---|---|---|
+| `SendPackage` | `Responce<byte[]> SendPackage(byte[] command, int receiveCount)` | Send a raw command and expect a fixed receive count. |
+| `SendPackageSingle` | `Responce<byte[]> SendPackageSingle(byte[] command)` | Send one raw command using default receive handling. |
+| `SendPackageReliable` | `Responce<byte[]> SendPackageReliable(byte[] command)` | Send one raw command using the reliable exchange path. |
+
+### Tag-based APIs
+
+Tag APIs resolve `tagName` through `client.TagDatabase`, then delegate to address-based operations or typed conversion helpers.
+
+| API | Signature | Purpose |
+|---|---|---|
+| `ReadWordsByTagAsync` | `Task<Responce<ushort[]>> ReadWordsByTagAsync(string tagName, int points, CancellationToken cancellationToken = default)` | Read raw words from a configured tag address. |
+| `ReadBitsByTagAsync` | `Task<Responce<bool[]>> ReadBitsByTagAsync(string tagName, int points, CancellationToken cancellationToken = default)` | Read bits from a configured tag address. |
+| `WriteWordsByTagAsync` | `Task<Responce> WriteWordsByTagAsync(string tagName, IReadOnlyList<ushort> values, CancellationToken cancellationToken = default)` | Write raw words to a configured tag address. |
+| `WriteBitsByTagAsync` | `Task<Responce> WriteBitsByTagAsync(string tagName, IReadOnlyList<bool> values, CancellationToken cancellationToken = default)` | Write bits to a configured tag address. |
+| `RandomReadWordsByTagAsync` | `Task<Responce<ushort[]>> RandomReadWordsByTagAsync(IEnumerable<string> tagNames, CancellationToken cancellationToken = default)` | Sparse word read by tag names. |
+| `RandomWriteWordsByTagAsync` | `Task<Responce> RandomWriteWordsByTagAsync(IEnumerable<KeyValuePair<string, ushort>> values, CancellationToken cancellationToken = default)` | Sparse word write by tag names. |
+| `ReadGeneratedBitTagAsync` | `Task<Responce<bool>> ReadGeneratedBitTagAsync(string tagName, CancellationToken cancellationToken = default)` | Helper used by generated bit-tag accessors. Usually called through `client.Generated().Tags.X.ReadAsync()`. |
+| `WriteGeneratedBitTagAsync` | `Task<Responce> WriteGeneratedBitTagAsync(string tagName, bool value, CancellationToken cancellationToken = default)` | Helper used by generated bit-tag accessors. |
+
+```csharp
+client.TagDatabase = MitsubishiTagDatabase.FromCsv(File.ReadAllText("plc-tags.csv"));
+
+await client.WriteWordsByTagAsync("RecipeNumber", [7]);
+var running = await client.ReadBitsByTagAsync("PumpRunning", 1);
+```
+
+### Typed tag conversion APIs
+
+| API | Signature | PLC words used | Purpose |
+|---|---|---:|---|
+| `ReadInt16ByTagAsync` | `Task<Responce<short>> ReadInt16ByTagAsync(string tagName, CancellationToken cancellationToken = default)` | 1 | Signed 16-bit read. |
+| `WriteInt16ByTagAsync` | `Task<Responce> WriteInt16ByTagAsync(string tagName, short value, CancellationToken cancellationToken = default)` | 1 | Signed 16-bit write. |
+| `ReadUInt16ByTagAsync` | `Task<Responce<ushort>> ReadUInt16ByTagAsync(string tagName, CancellationToken cancellationToken = default)` | 1 | Unsigned 16-bit read. |
+| `WriteUInt16ByTagAsync` | `Task<Responce> WriteUInt16ByTagAsync(string tagName, ushort value, CancellationToken cancellationToken = default)` | 1 | Unsigned 16-bit write. |
+| `ReadInt32ByTagAsync` | `Task<Responce<int>> ReadInt32ByTagAsync(string tagName, CancellationToken cancellationToken = default)` | 2 | Signed 32-bit read. Honors `ByteOrder`. |
+| `WriteInt32ByTagAsync` | `Task<Responce> WriteInt32ByTagAsync(string tagName, int value, CancellationToken cancellationToken = default)` | 2 | Signed 32-bit write. Honors `ByteOrder`. |
+| `ReadDWordByTagAsync` | `Task<Responce<uint>> ReadDWordByTagAsync(string tagName, CancellationToken cancellationToken = default)` | 2 | Unsigned 32-bit / DWord read. |
+| `WriteDWordByTagAsync` | `Task<Responce> WriteDWordByTagAsync(string tagName, uint value, CancellationToken cancellationToken = default)` | 2 | Unsigned 32-bit / DWord write. |
+| `ReadFloatByTagAsync` | `Task<Responce<float>> ReadFloatByTagAsync(string tagName, CancellationToken cancellationToken = default)` | 2 | IEEE754 single-precision read. |
+| `WriteFloatByTagAsync` | `Task<Responce> WriteFloatByTagAsync(string tagName, float value, CancellationToken cancellationToken = default)` | 2 | IEEE754 single-precision write. |
+| `ReadScaledDoubleByTagAsync` | `Task<Responce<double>> ReadScaledDoubleByTagAsync(string tagName, CancellationToken cancellationToken = default)` | Depends on `DataType` | Engineering value read using `(raw * Scale) + Offset`. |
+| `WriteScaledDoubleByTagAsync` | `Task<Responce> WriteScaledDoubleByTagAsync(string tagName, double value, CancellationToken cancellationToken = default)` | Depends on `DataType` | Engineering value write using `(value - Offset) / Scale`. |
+| `ReadStringByTagAsync` | `Task<Responce<string>> ReadStringByTagAsync(string tagName, CancellationToken cancellationToken = default)` | `Length` metadata | Schema-driven string read. |
+| `ReadStringByTagAsync` | `Task<Responce<string>> ReadStringByTagAsync(string tagName, int wordLength, CancellationToken cancellationToken = default)` | `wordLength` | Explicit-length string read. |
+| `WriteStringByTagAsync` | `Task<Responce> WriteStringByTagAsync(string tagName, string value, CancellationToken cancellationToken = default)` | `Length` metadata | Schema-driven string write. |
+| `WriteStringByTagAsync` | `Task<Responce> WriteStringByTagAsync(string tagName, string value, int wordLength, CancellationToken cancellationToken = default)` | `wordLength` | Explicit-length string write. |
+
+```csharp
+var total = await client.ReadDWordByTagAsync("TotalCount");
+var pressure = await client.ReadFloatByTagAsync("ProcessValue");
+var operatorMessage = await client.ReadStringByTagAsync("OperatorMessage");
+
+await client.WriteScaledDoubleByTagAsync("HeadTemp", 22.5d);
+```
+
+### Tag database and schema APIs
+
+| API | Signature | Purpose |
+|---|---|---|
+| `MitsubishiTagDatabase` | `MitsubishiTagDatabase(IEnumerable<MitsubishiTagDefinition> tags)` | Creates an in-memory tag database. |
+| Serialization document helpers | `MitsubishiTagDefinitionDocument.ToModel()`, `MitsubishiTagDefinitionDocument.FromModel(...)`, `MitsubishiTagGroupDefinitionDocument.ToModel()`, `MitsubishiTagGroupDefinitionDocument.FromModel(...)` | DTO mapping helpers used by JSON/YAML persistence; application code normally uses `FromJson`, `FromYaml`, `ToJson`, `ToYaml`, `Load`, and `Save`. |
+| `Count` | `int Count { get; }` | Number of tags. |
+| `GroupCount` | `int GroupCount { get; }` | Number of groups. |
+| `Tags` | `IReadOnlyCollection<MitsubishiTagDefinition> Tags { get; }` | Tag definitions. |
+| `Groups` | `IReadOnlyCollection<MitsubishiTagGroupDefinition> Groups { get; }` | Group definitions. |
+| `Add` | `void Add(MitsubishiTagDefinition tag)` | Adds or replaces a tag after validating metadata. |
+| `TryGet` | `bool TryGet(string name, out MitsubishiTagDefinition tag)` | Case-insensitive optional tag lookup. |
+| `GetRequired` | `MitsubishiTagDefinition GetRequired(string name)` | Case-insensitive required tag lookup. |
+| `AddGroup` | `void AddGroup(MitsubishiTagGroupDefinition group)` | Adds or replaces a group. |
+| `TryGetGroup` | `bool TryGetGroup(string name, out MitsubishiTagGroupDefinition group)` | Optional group lookup. |
+| `GetRequiredGroup` | `MitsubishiTagGroupDefinition GetRequiredGroup(string name)` | Required group lookup. |
+| `FromCsv` | `static MitsubishiTagDatabase FromCsv(string csvContent)` | Loads tag definitions from CSV. |
+| `FromJson` | `static MitsubishiTagDatabase FromJson(string json)` | Loads full schema from JSON. |
+| `FromYaml` | `static MitsubishiTagDatabase FromYaml(string yaml)` | Loads full schema from YAML. |
+| `Load` | `static MitsubishiTagDatabase Load(string path)` | Loads by extension: `.csv`, `.json`, `.yaml`, `.yml`. |
+| `ToJson` | `string ToJson()` | Serializes full schema to JSON. |
+| `ToYaml` | `string ToYaml()` | Serializes full schema to YAML. |
+| `Save` | `void Save(string path)` | Saves by extension. CSV is tag-only; JSON/YAML preserve groups. |
+| `CompareWith` | `MitsubishiTagDatabaseDiff CompareWith(MitsubishiTagDatabase other)` | Computes semantic schema diff. |
+
+```csharp
+var tags = new MitsubishiTagDatabase([
+    new MitsubishiTagDefinition("MotorSpeed", "D100", DataType: "Float", Units: "rpm"),
+    new MitsubishiTagDefinition("PumpRunning", "M10", DataType: "Bit")
+]);
+
+tags.AddGroup(new MitsubishiTagGroupDefinition("Overview", ["MotorSpeed", "PumpRunning"]));
+tags.Save("plc-tags.yaml");
+```
+
+### Schema validation, reload, diff, and rollout APIs
+
+| API | Signature | Purpose |
+|---|---|---|
+| `ValidateTagDatabase` | `Responce ValidateTagDatabase()` | Validates configured tag addresses, string lengths, and group membership. |
+| `LoadAndValidateTagDatabase` | `Responce<MitsubishiTagDatabase> LoadAndValidateTagDatabase(string path)` | Loads, validates, applies on success using `AllowAll`. |
+| `LoadAndValidateTagDatabase` | `Responce<MitsubishiTagDatabase> LoadAndValidateTagDatabase(string path, MitsubishiTagRolloutPolicy policy)` | Loads, validates, diff-checks against policy, applies on success. |
+| `PreviewTagDatabaseDiff` | `Responce<MitsubishiTagDatabaseDiff> PreviewTagDatabaseDiff(string path)` | Loads and validates incoming schema, returns semantic diff without applying. |
+| `PreviewTagDatabaseDiff` | `Responce<MitsubishiTagDatabaseDiff> PreviewTagDatabaseDiff(string path, MitsubishiTagRolloutPolicy policy)` | Preview plus rollout policy enforcement. |
+| `ObserveTagDatabaseReload` | `IObservable<Responce<MitsubishiTagDatabase>> ObserveTagDatabaseReload(string path, TimeSpan pollInterval, bool emitInitial = true)` | Polls schema file and emits valid/invalid reload results. |
+| `ObserveTagDatabaseReload` | `IObservable<Responce<MitsubishiTagDatabase>> ObserveTagDatabaseReload(string path, TimeSpan pollInterval, bool emitInitial, MitsubishiTagRolloutPolicy policy)` | Reload stream gated by rollout policy. |
+| `ObserveTagDatabaseDiff` | `IObservable<Responce<MitsubishiTagDatabaseDiff>> ObserveTagDatabaseDiff(string path, TimeSpan pollInterval, bool emitInitial = true)` | Polls schema file and emits semantic diffs. |
+| `ObserveTagDatabaseDiff` | `IObservable<Responce<MitsubishiTagDatabaseDiff>> ObserveTagDatabaseDiff(string path, TimeSpan pollInterval, bool emitInitial, MitsubishiTagRolloutPolicy policy)` | Diff stream gated by rollout policy. |
+
+Invalid reload/diff emissions do not replace the active `client.TagDatabase`.
+
+### Tag group APIs
+
+| API | Signature | Purpose |
+|---|---|---|
+| `ReadTagGroupSnapshotAsync` | `Task<Responce<MitsubishiTagGroupSnapshot>> ReadTagGroupSnapshotAsync(string groupName, CancellationToken cancellationToken = default)` | Reads every tag in a group and returns a heterogeneous snapshot. |
+| `ValidateTagGroupWrite` | `Responce ValidateTagGroupWrite(string groupName, IReadOnlyDictionary<string, object?> values)` | Validates provided write values against group membership and tag data types. |
+| `WriteTagGroupValuesAsync` | `Task<Responce> WriteTagGroupValuesAsync(string groupName, IReadOnlyDictionary<string, object?> values, CancellationToken cancellationToken = default)` | Writes only supplied group values in configured group order. |
+| `WriteTagGroupSnapshotAsync` | `Task<Responce> WriteTagGroupSnapshotAsync(MitsubishiTagGroupSnapshot snapshot, CancellationToken cancellationToken = default)` | Writes a complete snapshot back to its group. |
+| Snapshot accessor | `snapshot.GetRequired<T>(tagName)` | Gets a typed value or throws when missing/wrong type. |
+| Snapshot optional accessor | `snapshot.GetOptional<T>(tagName)` | Gets a typed value or default when missing/wrong type. |
+
+```csharp
+var snapshot = await client.ReadTagGroupSnapshotAsync("Overview");
+if (snapshot.IsSucceed)
+{
+    float speed = snapshot.Value!.GetRequired<float>("MotorSpeed");
+    bool pump = snapshot.Value.GetRequired<bool>("PumpRunning");
+}
+```
+
+### Reactive polling APIs
+
+| API | Signature | Purpose |
+|---|---|---|
+| `ObserveWords` | `IObservable<Responce<ushort[]>> ObserveWords(string address, int points, TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null, TimeSpan? pollTimeout = null)` | Polls words. |
+| `ObserveBits` | `IObservable<Responce<bool[]>> ObserveBits(string address, int points, TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Polls bits. |
+| `ObserveWordsHeartbeat` | `IObservable<IHeartbeat<Responce<ushort[]>>> ObserveWordsHeartbeat(string address, int points, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null, TimeSpan? pollTimeout = null)` | Word polling with heartbeat envelopes. |
+| `ObserveWordsStale` | `IObservable<IStale<Responce<ushort[]>>> ObserveWordsStale(string address, int points, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)` | Word polling with stale markers. |
+| `ObserveWordsLatest` | `IObservable<Responce<ushort[]>> ObserveWordsLatest(string address, int points, IObservable<Unit> trigger)` | Latest-only triggered read. |
+| `ObserveTagGroup` | `IObservable<Responce<MitsubishiTagGroupSnapshot>> ObserveTagGroup(string groupName, TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Polls a tag group. |
+| `ObserveTagGroupHeartbeat` | `IObservable<IHeartbeat<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupHeartbeat(string groupName, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null)` | Group polling with heartbeat envelopes. |
+| `ObserveTagGroupStale` | `IObservable<IStale<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupStale(string groupName, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)` | Group polling with stale markers. |
+| `ObserveTagGroupLatest` | `IObservable<Responce<MitsubishiTagGroupSnapshot>> ObserveTagGroupLatest(string groupName, IObservable<Unit> trigger)` | Latest-only triggered group read. |
+| `SampleDiagnostics` | `IObservable<MitsubishiOperationLog> SampleDiagnostics(IObservable<object> trigger)` | Samples latest operation diagnostics on trigger. |
+| `ObserveConnectionHealth` | `IObservable<IStale<MitsubishiConnectionState>> ObserveConnectionHealth(TimeSpan staleAfter)` | Detects stale connection-state updates. |
+
+```csharp
+using var sub = client.ObserveWords("D100", 2, TimeSpan.FromSeconds(1))
+    .Subscribe(result => Console.WriteLine(result.IsSucceed ? string.Join(",", result.Value!) : result.Err));
+```
+
+### Hot reactive value APIs
+
+Hot reactive APIs share scan work between equivalent subscribers and emit `MitsubishiReactiveValue<T>` quality envelopes.
+
+| API | Signature | Purpose |
+|---|---|---|
+| `ObserveReactiveWords` | `IObservable<MitsubishiReactiveValue<ushort[]>> ObserveReactiveWords(string address, int points, TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Shared hot word scan. |
+| `ObserveReactiveTag<T>` | `IObservable<MitsubishiReactiveValue<T>> ObserveReactiveTag<T>(string tagName, TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Shared typed tag projection. |
+| `ObserveReactiveTagGroup` | `IObservable<MitsubishiReactiveValue<MitsubishiTagGroupSnapshot>> ObserveReactiveTagGroup(string groupName, TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Shared grouped snapshot scan. |
+| `SharedReactiveStream<T>` | `SharedReactiveStream(Func<bool, IObservable<MitsubishiReactiveValue<T>>> streamFactory)` with `Stream` and `Dispose()` | Internal shared-stream primitive exposed by the assembly; application code normally uses the three `ObserveReactive...` methods instead. |
+
+`MitsubishiReactiveValue<T>` fields: `Value`, `TimestampUtc`, `Quality`, `IsHeartbeat`, `IsStale`, `Source`, `Error`, `ErrorCode`, `Exception`.
+
+`MitsubishiReactiveQuality` values: `Good`, `Bad`, `Stale`, `Heartbeat`, `Error`.
+
+Factory helpers:
+
+| API | Signature | Purpose |
+|---|---|---|
+| `MitsubishiReactiveValue.FromResponse` | `static MitsubishiReactiveValue<T> FromResponse<T>(Responce<T> response, DateTimeOffset timestampUtc, string source)` | Wraps a normal response. |
+| `MitsubishiReactiveValue.Heartbeat` | `static MitsubishiReactiveValue<T> Heartbeat<T>(MitsubishiReactiveValue<T> value, DateTimeOffset timestampUtc)` | Creates a heartbeat envelope. |
+| `MitsubishiReactiveValue.Stale` | `static MitsubishiReactiveValue<T> Stale<T>(MitsubishiReactiveValue<T> value, DateTimeOffset timestampUtc)` | Creates a stale envelope. |
+
+### Reactive write pipeline APIs
+
+| API | Signature | Purpose |
+|---|---|---|
+| `CreateReactiveWordWritePipeline` | `MitsubishiReactiveWritePipeline<IReadOnlyList<ushort>> CreateReactiveWordWritePipeline(string address, MitsubishiReactiveWriteMode mode, TimeSpan? coalescingWindow = null)` | Creates a word write pipeline for raw address writes. |
+| `CreateReactiveTagWritePipeline<T>` | `MitsubishiReactiveWritePipeline<T> CreateReactiveTagWritePipeline<T>(string tagName, MitsubishiReactiveWriteMode mode, TimeSpan? coalescingWindow = null)` | Creates a typed tag write pipeline. |
+| `MitsubishiReactiveWritePipeline<TPayload>.Post` | `void Post(TPayload payload)` | Queues/posts a payload according to the configured mode. |
+| `MitsubishiReactiveWritePipeline<TPayload>.Results` | `IObservable<MitsubishiReactiveWriteResult> Results { get; }` | Completion result stream. |
+| `MitsubishiReactiveWritePipeline<TPayload>.Mode` | `MitsubishiReactiveWriteMode Mode { get; }` | Configured behavior. |
+| `Dispose` | `void Dispose()` | Stops the pipeline and releases subscriptions. |
+
+`MitsubishiReactiveWriteMode` values:
+
+| Value | Behavior |
+|---|---|
+| `Queued` | Preserve every posted write in order. |
+| `LatestWins` | Collapse bursts to the latest posted value. |
+| `Coalescing` | Delay within `coalescingWindow` and write the latest value when the window closes. |
+
+`MitsubishiReactiveWriteResult` fields: `Target`, `TimestampUtc`, `Mode`, `Success`, `Error`, `ErrorCode`, `Exception`.
+
+### Generated typed client APIs
+
+Add `[MitsubishiTagClientSchema("{...json...}")]` to a class or assembly. The analyzer generates an extension entrypoint:
+
+```csharp
+var generated = client.Generated();
+var speed = await generated.Tags.MotorSpeed.ReadAsync();
+await generated.Tags.MotorSpeed.WriteAsync(123.4f);
+
+var line = await generated.Groups.Line1.ReadAsync();
+await generated.Groups.Line1.WriteAsync(line.Value!);
+```
+
+Generated tag clients expose:
+
+| Generated API | Shape | Purpose |
+|---|---|---|
+| `ReadAsync` | `Task<Responce<T>> ReadAsync(CancellationToken cancellationToken = default)` | Reads a typed tag value. |
+| `WriteAsync` | `Task<Responce> WriteAsync(T value, CancellationToken cancellationToken = default)` | Writes a typed tag value. |
+| `Observe` | `IObservable<MitsubishiReactiveValue<T>> Observe(TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Observes a typed tag. |
+
+Generated group clients expose:
+
+| Generated API | Shape | Purpose |
+|---|---|---|
+| `ReadAsync` | `Task<Responce<TSnapshot>> ReadAsync(CancellationToken cancellationToken = default)` | Reads and maps a runtime group snapshot to a generated typed snapshot. |
+| `ReadOptionalAsync` | `Task<Responce<TSnapshot?>> ReadOptionalAsync(CancellationToken cancellationToken = default)` | Returns `null` when the runtime snapshot is incomplete or type-mismatched. |
+| `WriteAsync` | `Task<Responce> WriteAsync(TSnapshot value, CancellationToken cancellationToken = default)` | Writes a generated typed snapshot back through `WriteTagGroupSnapshotAsync`. |
+| `Observe` | `IObservable<MitsubishiReactiveValue<TSnapshot>> Observe(TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Observes a generated typed group snapshot. |
+| `ObserveOptional` | `IObservable<MitsubishiReactiveValue<TSnapshot?>> ObserveOptional(TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Observes an optional generated group snapshot. |
+
+Compile-time generator diagnostics:
+
+The implementation types behind this feature are `MitsubishiTagClientGenerator` and `MitsubishiTagClientEmitter`. The source-generator attribute exposes `SchemaJson` from `MitsubishiTagClientSchemaAttribute`; `Initialize(...)` wires the incremental generator. `SchemaModel`, `TagModel`, and `GroupModel` are generator-side schema parse models. Consumers normally only write the attribute and call generated extension methods, not the generator classes directly.
+
+| ID | Meaning |
+|---|---|
+| `MRTXGEN001` | Failed to parse or generate schema client source. |
+| `MRTXGEN002` | Duplicate tag name. |
+| `MRTXGEN003` | Group references unknown tag name. |
+| `MRTXGEN004` | Unsupported generated `dataType`. |
+| `MRTXGEN005` | Sanitized generated identifier collision. |
+| `MRTXGEN006` | Empty tag name. |
+| `MRTXGEN007` | Empty group name. |
+| `MRTXGEN008` | Group has no member tags. |
+| `MRTXGEN009` | Duplicate group name. |
+| `MRTXGEN010` | Empty tag reference inside a group. |
+| `MRTXGEN011` | Duplicate tag reference inside a group. |
+
+### Models, records, enums, and constants
+
+| Type | Members / values | Usage |
+|---|---|---|
+| `MitsubishiClientOptions` | `Host`, `Port`, `FrameType`, `DataCode`, `TransportKind`, `Route`, `MonitoringTimer`, `Timeout`, `CpuType`, `XyNotation`, `LegacyPcNumber`, `SerialNumberProvider`, `Serial`; helper properties `ResolvedTimeout`, `ResolvedRoute`, `ResolvedSerial`; method `GetNextSerialNumber()` | Complete client configuration. |
+| `MitsubishiRoute` | `NetworkNumber`, `StationNumber`, `ModuleIoNumber`, `MultidropStationNumber`, `ExtensionStationNumber`; static `Default` | Ethernet route metadata for 3E/4E. |
+| `MitsubishiSerialOptions` | `PortName`, `BaudRate`, `DataBits`, `Parity`, `StopBits`, `Handshake`, `MessageFormat`, `StationNumber`, `NetworkNumber`, `PcNumber`, `RequestDestinationModuleIoNumber`, `RequestDestinationModuleStationNumber`, `SelfStationNumber`, `MessageWait`, `ReadBufferSize`, `WriteBufferSize`, `NewLine`; property `Route` | Serial port and serial MC protocol settings. |
+| `MitsubishiSerialRoute` | `StationNumber`, `NetworkNumber`, `PcNumber`, `RequestDestinationModuleIoNumber`, `RequestDestinationModuleStationNumber`, `SelfStationNumber` | Derived serial route metadata. |
+| `MitsubishiRawCommandRequest` | `Command`, `Subcommand`, `Body`, `Description`; property `ResolvedBody` | Raw command request for `ExecuteRawAsync`. |
+| `MitsubishiTransportRequest` | `Payload`, `ExpectedResponseLength`, `Description` | Transport-level request passed to custom transports. |
+| `MitsubishiOperationLog` | `TimestampUtc`, `State`, `Description`, `Success`, `RequestPayload`, `ResponsePayload`, `Exception` | Operation diagnostics. |
+| `MitsubishiTypeName` | `ModelName`, `ModelCode` | Return model for `ReadTypeNameAsync`. |
+| `MitsubishiDeviceValue` | `Address`, `Value` | Random-write word pair. |
+| `MitsubishiWordBlock` | `Address`, `Values` | Word block descriptor. |
+| `MitsubishiBitBlock` | `Address`, `Values` | Bit block descriptor. |
+| `MitsubishiBlockRequest` | `WordBlocks`, `BitBlocks`; properties `ResolvedWordBlocks`, `ResolvedBitBlocks` | Multi-block read/write descriptor. |
+| `MitsubishiTagDefinition` | `Name`, `Address`, `DataType`, `Description`, `Scale`, `Offset`, `Length`, `Encoding`, `Units`, `Signed`, `ByteOrder`, `Notes` | Symbolic tag schema row. |
+| `MitsubishiTagGroupDefinition` | `Name`, `TagNames`, `ResolvedTagNames` | Named group/scan class. `ResolvedTagNames` gives a non-null ordered member list. |
+| `MitsubishiTagGroupSnapshot` | `GroupName`, `Values`, `TagNames`; `GetRequired<T>`, `GetOptional<T>` | Typed group result and write payload. |
+| `MitsubishiTagChange` | `Name`, `Previous`, `Current`, `ChangeKinds` | Tag diff item. |
+| `MitsubishiTagGroupChange` | `Name`, `Previous`, `Current`, `ChangeKinds` | Group diff item. |
+| `MitsubishiTagDatabaseDiff` | `AddedTags`, `RemovedTags`, `ChangedTags`, `AddedGroups`, `RemovedGroups`, `ChangedGroups`, `ChangeKinds`, `HasChanges`, `ChangeCount`, static `Empty` | Schema diff result. |
+| `Responce` | `IsSucceed`, `Err`, `ErrCode`, `Exception`, `ErrList`, `Request`, `Response`, `Request2`, `Response2`, `TimeConsuming`, `InitialTime`, `SetErrInfo`, `AddErr2List` | Base response envelope. |
+| `Responce<T>` | `Value`; constructors from value/base response; `SetErrInfo` | Typed response envelope. |
+
+Enums:
+
+| Enum | Values |
+|---|---|
+| `CpuType` | `None`, `ASeries`, `QnaSeries`, `QSeries`, `LSeries`, `Fx3`, `Fx5`, `IQR` |
+| `MitsubishiFrameType` | `OneE`, `ThreeE`, `FourE`, `OneC`, `ThreeC`, `FourC` |
+| `CommunicationDataCode` | `Binary`, `Ascii` |
+| `MitsubishiTransportKind` | `Tcp`, `Udp`, `Serial` |
+| `XyAddressNotation` | `Octal`, `Hexadecimal` |
+| `MitsubishiConnectionState` | `Disconnected`, `Connecting`, `Connected`, `Reconnecting`, `Faulted` |
+| `MitsubishiSerialMessageFormat` | `Format1`, `Format4`, `Format5` |
+| `DeviceValueKind` | `Bit`, `Word` |
+| `DeviceNumberFormat` | `Decimal`, `Hexadecimal`, `Octal`, `XyVariable` |
+| `MitsubishiReactiveQuality` | `Good`, `Bad`, `Stale`, `Heartbeat`, `Error` |
+| `MitsubishiReactiveWriteMode` | `Queued`, `LatestWins`, `Coalescing` |
+| `MitsubishiSchemaChangeKind` | `None`, `MetadataOnly`, `AddressChange`, `DataTypeChange`, `GroupMembershipChange`, `StructureChange` |
+| `MitsubishiTagRolloutPolicy` | `AllowAll`, `SafeMetadataAndGroups` |
+
+`MitsubishiCommands` constants:
+
+| Constant | Value | Command |
+|---|---:|---|
+| `DeviceRead` | `0x0401` | Batch read |
+| `DeviceWrite` | `0x1401` | Batch write |
+| `RandomRead` | `0x0403` | Random read |
+| `RandomWrite` | `0x1402` | Random write |
+| `BlockRead` | `0x0406` | Block read |
+| `BlockWrite` | `0x1406` | Block write |
+| `EntryMonitorDevice` | `0x0801` | Monitor registration |
+| `ExecuteMonitor` | `0x0802` | Execute monitor |
+| `ExtendUnitRead` | `0x0601` | Intelligent-module buffer read |
+| `ExtendUnitWrite` | `0x1601` | Intelligent-module buffer write |
+| `MemoryRead` | `0x0613` | Memory read |
+| `MemoryWrite` | `0x1613` | Memory write |
+| `ReadTypeName` | `0x0101` | PLC type-name read |
+| `RemoteRun` | `0x1001` | Remote RUN |
+| `RemoteStop` | `0x1002` | Remote STOP |
+| `RemotePause` | `0x1003` | Remote PAUSE |
+| `RemoteLatchClear` | `0x1005` | Remote latch clear |
+| `RemoteReset` | `0x1006` | Remote RESET |
+| `Unlock` | `0x1630` | Remote password unlock |
+| `Lock` | `0x1631` | Remote password lock |
+| `LoopbackTest` | `0x0619` | Loopback |
+| `ClearError` | `0x1617` | Clear error |
+
+### Device addressing reference
+
+`MitsubishiDeviceAddress.Parse(value, xyNotation)` validates and normalizes device addresses. `MitsubishiDeviceAddress.Metadata` exposes supported device families. A parsed address exposes `Descriptor`, whose `MitsubishiDeviceMetadata` contains `Symbol`, `BinaryCode`, `AsciiCode`, `Kind`, and `NumberFormat`; call `GetRadix(xyNotation)` when building custom tooling that needs the effective address base.
+
+| Device | Kind | Number format |
+|---|---|---|
+| `X` | Bit | Octal or hexadecimal via `XyAddressNotation` |
+| `Y` | Bit | Octal or hexadecimal via `XyAddressNotation` |
+| `M` | Bit | Decimal |
+| `L` | Bit | Decimal |
+| `B` | Bit | Hexadecimal |
+| `D` | Word | Decimal |
+| `W` | Word | Hexadecimal |
+| `R` | Word | Decimal |
+| `ZR` | Word | Hexadecimal |
+| `TN` | Word | Decimal |
+| `TS` | Bit | Decimal |
+| `TC` | Bit | Decimal |
+| `CN` | Word | Decimal |
+| `CS` | Bit | Decimal |
+| `CC` | Bit | Decimal |
+| `SM` | Bit | Decimal |
+| `SD` | Word | Decimal |
+
+```csharp
+var xOctal = MitsubishiDeviceAddress.Parse("X20", XyAddressNotation.Octal);
+var xHex = MitsubishiDeviceAddress.Parse("X20", XyAddressNotation.Hexadecimal);
+Console.WriteLine($"octal={xOctal.Number}, hex={xHex.Number}");
+```
+
+### Advanced protocol and transport extension points
+
+Most applications should use `MitsubishiRx` high-level APIs. The following public helpers are available for advanced testing, custom tooling, protocol inspection, and custom transports.
+
+| API | Purpose |
+|---|---|
+| `IMitsubishiTransport` | Implement `ConnectAsync`, `DisconnectAsync`, `ExchangeAsync`, `IsConnected`, `Dispose`, and `DisposeAsync` for custom transport backends. |
+| `SocketMitsubishiTransport` | Built-in TCP/UDP transport. |
+| `ReactiveSerialMitsubishiTransport` | Built-in SerialPortRx-backed serial transport. |
+| `ReactiveSerialPortAdapter` | Adapter around `SerialPortRx`; exposes `IsOpen`, `ReceivedBytes`, `WrittenBytes`, `Open`, `Close`, `Write`, `DiscardInBuffer`, `DiscardOutBuffer`, and `Dispose`. |
+| `MitsubishiProtocolEncoding.Encode(...)` / `Decode(...)` | Ethernet raw request encoding and response decoding. |
+| `MitsubishiProtocolEncoding.GetFixedResponseLength(...)` | Calculates fixed receive sizes where the frame supports it. |
+| `MitsubishiProtocolEncoding.EncodeDeviceBatchRead(...)` / `EncodeDeviceBatchWrite(...)` | Ethernet batch device operation builders. |
+| `MitsubishiProtocolEncoding.EncodeRandomRead(...)` / `EncodeRandomWrite(...)` | Ethernet random operation builders. |
+| `MitsubishiProtocolEncoding.EncodeMonitorRegistration(...)` / `EncodeExecuteMonitor(...)` | Ethernet monitor builders. |
+| `MitsubishiProtocolEncoding.EncodeBlockRead(...)` / `EncodeBlockWrite(...)` | Ethernet block operation builders. |
+| `MitsubishiProtocolEncoding.EncodeReadTypeName(...)`, `EncodeRemoteOperation(...)`, `EncodeLoopback(...)`, `EncodeRemotePassword(...)`, `EncodeMemoryAccess(...)` | Ethernet specialized command builders. |
+| `MitsubishiSerialProtocolEncoding.EncodeWordReadRequest(...)`, `EncodeWordWriteRequest(...)`, `EncodeBitReadRequest(...)`, `EncodeBitWriteRequest(...)` | Serial batch operation builders. |
+| `MitsubishiSerialProtocolEncoding.EncodeRandomReadRequest(...)`, `EncodeRandomWriteRequest(...)`, `EncodeBlockReadRequest(...)`, `EncodeBlockWriteRequest(...)` | Serial random/block builders. |
+| `MitsubishiSerialProtocolEncoding.EncodeMonitorRegistrationRequest(...)`, `EncodeExecuteMonitorRequest(...)`, `EncodeRemoteOperationRequest(...)`, `EncodeReadTypeNameRequest(...)`, `EncodeLoopbackRequest(...)`, `EncodeMemoryAccessRequest(...)`, `EncodeRawRequest(...)` | Serial specialized command builders. |
+| `MitsubishiSerialProtocolEncoding.Decode(...)` | Serial response decoding. |
+| `MitsubishiSerialProtocolEncoding.IsExpectedFrameComplete(...)` | Serial frame-completion predicate used by the serial transport. |
+| `ResponceExtensions.Fail(...)` | Converts a response to failed state with error metadata. |
+| `ResponceExtensions.ToBaseResponse(...)` | Converts a typed response into a base `Responce`. |
+| `Mixins.SafeClose(...)` | Compatibility socket close helper. |
+
+Custom transport example:
+
+```csharp
+public sealed class AuditedTransport : IMitsubishiTransport
+{
+    private readonly IMitsubishiTransport _inner;
+
+    public AuditedTransport(IMitsubishiTransport inner) => _inner = inner;
+    public bool IsConnected => _inner.IsConnected;
+    public ValueTask ConnectAsync(MitsubishiClientOptions options, CancellationToken cancellationToken = default)
+        => _inner.ConnectAsync(options, cancellationToken);
+    public ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
+        => _inner.DisconnectAsync(cancellationToken);
+    public async ValueTask<byte[]> ExchangeAsync(MitsubishiTransportRequest request, CancellationToken cancellationToken = default)
+    {
+        Console.WriteLine(request.Description);
+        return await _inner.ExchangeAsync(request, cancellationToken);
+    }
+    public void Dispose() => _inner.Dispose();
+    public ValueTask DisposeAsync() => _inner.DisposeAsync();
+}
+
+await using var client = new MitsubishiRx.MitsubishiRx(options, new AuditedTransport(new SocketMitsubishiTransport()));
+```
 
 ---
 
@@ -1793,24 +2439,29 @@ If communication succeeds on one endpoint but not another:
 - verify TCP vs UDP vs serial configuration on the PLC/module side
 - for serial, also verify `MitsubishiSerialMessageFormat` (`Format1`, `Format4`, `Format5`) and serial-port settings such as baud rate, parity, stop bits, and handshake
 
-### Serial support limitations
+### Serial support coverage
 
-Current serial implementation is intentionally narrower than Ethernet support. If a serial operation fails, first confirm that the current serial implementation actually covers that scenario.
-
-Currently implemented and verified for serial:
+Current serial implementation is verified for:
 - reactive SerialPortRx-based transport
 - serial batch word reads through `ReadWordsAsync(address, points)`
+- serial batch word writes through `WriteWordsAsync(address, values)`
+- serial batch bit reads through `ReadBitsAsync(address, points)`
+- serial batch bit writes through `WriteBitsAsync(address, values)`
+- serial random word reads through `RandomReadWordsAsync(addresses)` for `1C`, `3C`, and `4C`
+- serial random word writes through `RandomWriteWordsAsync(values)` for `1C`, `3C`, and `4C`
+- serial block reads through `ReadBlocksAsync(request)` for `1C`, `3C`, and `4C`
+- serial block writes through `WriteBlocksAsync(request)` for `1C`, `3C`, and `4C`
+- serial monitor registration through `RegisterMonitorAsync(addresses)` for `1C`, `3C`, and `4C`
+- serial monitor execution through `ExecuteMonitorAsync()` for `1C`, `3C`, and `4C`
+- serial remote RUN/STOP/PAUSE/LATCH CLEAR/RESET through `RemoteRunAsync(...)`, `RemoteStopAsync()`, `RemotePauseAsync()`, `RemoteLatchClearAsync()`, and `RemoteResetAsync()` for `1C`, `3C`, and `4C`
+- serial type-name read through `ReadTypeNameAsync()` for `1C`, tested `3C` ASCII, and `4C` format 5
+- serial loopback through `LoopbackAsync(data)` for `1C`, tested `3C` ASCII, and `4C` format 5
+- serial memory and extend-unit access through `ReadMemoryAsync(...)` / `WriteMemoryAsync(...)` for `1C`, tested `3C` ASCII, and `4C` format 5
+- raw serial command execution through `ExecuteRawAsync(request)` for `1C`, tested `3C` ASCII, and `4C` format 5
 - `1C`, `3C`, and `4C` frame selection
 - serial ASCII format 1/4 and 4C binary format 5 decode paths
 
-Not yet implemented for serial:
-- serial writes
-- random operations
-- block operations
-- monitor registration/execution
-- remote control commands
-- memory / extend-unit commands
-- raw serial command execution
+`1C` random, block, and monitor operations are implemented by composing the verified 1C batch read/write requests. This keeps legacy computer-link paths usable even when the target does not provide native multi-device command forms.
 
 ### Remote operations do not execute
 

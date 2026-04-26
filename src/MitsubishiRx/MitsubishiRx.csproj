@@ -13,4 +13,16 @@
     <PackageReference Include="System.Reactive" Version="6.1.0" />
     <PackageReference Include="YamlDotNet" Version="17.0.1" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MitsubishiRx.Generators\MitsubishiRx.Generators.csproj"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="Analyzer"
+                      PrivateAssets="all"
+                      SetConfiguration="Configuration=$(Configuration)" />
+    <None Include="..\MitsubishiRx.Generators\bin\$(Configuration)\netstandard2.0\MitsubishiRx.Generators.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+  </ItemGroup>
 </Project>

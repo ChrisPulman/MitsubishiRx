@@ -20,6 +20,9 @@
     <File Path="../stylecop.json" />
     <File Path="../Version.json" />
   </Folder>
+  <Project Path="MitsubishiRx.Generators/MitsubishiRx.Generators.csproj">
+    <Configuration Solution="*|*" Project="*|*|NoBuild" />
+  </Project>
   <Project Path="MitsubishiRx.Tests/MitsubishiRx.Tests.csproj" />
   <Project Path="MitsubishiRx/MitsubishiRx.csproj" />
 </Solution>
