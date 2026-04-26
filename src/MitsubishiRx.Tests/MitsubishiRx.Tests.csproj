@@ -11,7 +11,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MitsubishiRx\MitsubishiRx.csproj" />
-    <ProjectReference Include="..\MitsubishiRx.Generators\MitsubishiRx.Generators.csproj" />
+    <ProjectReference Include="..\MitsubishiRx.Generators\MitsubishiRx.Generators.csproj"
+                      SetConfiguration="Configuration=$(Configuration)" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" />
     <PackageReference Include="Microsoft.Reactive.Testing" Version="6.1.0" />
     <PackageReference Include="TUnit" Version="1.*" />

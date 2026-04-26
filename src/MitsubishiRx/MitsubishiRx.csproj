@@ -19,7 +19,7 @@
                       ReferenceOutputAssembly="false"
                       OutputItemType="Analyzer"
                       PrivateAssets="all"
-                      SetTargetFramework="TargetFramework=netstandard2.0" />
+                      SetConfiguration="Configuration=$(Configuration)" />
     <None Include="..\MitsubishiRx.Generators\bin\$(Configuration)\netstandard2.0\MitsubishiRx.Generators.dll"
           Pack="true"
           PackagePath="analyzers/dotnet/cs"
