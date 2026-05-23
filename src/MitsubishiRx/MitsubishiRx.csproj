@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="ReactiveUI.Extensions" Version="2.3.1" />
-    <PackageReference Include="SerialPortRx" Version="3.4.4" />
+    <PackageReference Include="SerialPortRx" Version="4.0.1" />
     <PackageReference Include="System.Reactive" Version="6.1.0" />
     <PackageReference Include="YamlDotNet" Version="18.0.0" />
   </ItemGroup>
