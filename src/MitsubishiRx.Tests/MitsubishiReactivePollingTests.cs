@@ -29,7 +29,7 @@ public sealed class MitsubishiReactivePollingTests
             MonitoringTimer: 0x0010);
 
         var client = new MitsubishiRx(options, transport, scheduler);
-        var received = new List<IHeartbeat<Responce<ushort[]>>>();
+        var received = new List<Heartbeat<Responce<ushort[]>>>();
 
         using var subscription = client
             .ObserveWordsHeartbeat("D100", 1, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(10), TimeSpan.FromSeconds(30))

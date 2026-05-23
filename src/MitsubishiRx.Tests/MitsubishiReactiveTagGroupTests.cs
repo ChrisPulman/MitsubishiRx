@@ -41,7 +41,7 @@ public sealed class MitsubishiReactiveTagGroupTests
             TagDatabase = database,
         };
 
-        var received = new List<IHeartbeat<Responce<MitsubishiTagGroupSnapshot>>>();
+        var received = new List<Heartbeat<Responce<MitsubishiTagGroupSnapshot>>>();
 
         using var subscription = client
             .ObserveTagGroupHeartbeat("Recipe", TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(10))
@@ -93,7 +93,7 @@ public sealed class MitsubishiReactiveTagGroupTests
             TagDatabase = database,
         };
 
-        var received = new List<IStale<Responce<MitsubishiTagGroupSnapshot>>>();
+        var received = new List<Stale<Responce<MitsubishiTagGroupSnapshot>>>();
 
         using var subscription = client
             .ObserveTagGroupStale("Recipe", TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(10))

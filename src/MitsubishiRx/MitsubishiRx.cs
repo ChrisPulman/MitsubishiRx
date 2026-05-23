@@ -1267,7 +1267,7 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     /// <param name="minimumUpdateSpacing">Minimum spacing between notifications.</param>
     /// <param name="pollTimeout">Per-poll timeout.</param>
     /// <returns>Observable heartbeat stream.</returns>
-    public IObservable<IHeartbeat<Responce<ushort[]>>> ObserveWordsHeartbeat(string address, int points, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null, TimeSpan? pollTimeout = null)
+    public IObservable<Heartbeat<Responce<ushort[]>>> ObserveWordsHeartbeat(string address, int points, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null, TimeSpan? pollTimeout = null)
         => ObserveWords(address, points, pollInterval, minimumUpdateSpacing, pollTimeout).Heartbeat(heartbeatAfter, _scheduler);
 
     /// <summary>
@@ -1279,7 +1279,7 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     /// <param name="staleAfter">Staleness threshold.</param>
     /// <param name="minimumUpdateSpacing">Minimum spacing between notifications.</param>
     /// <returns>Observable stale-aware stream.</returns>
-    public IObservable<IStale<Responce<ushort[]>>> ObserveWordsStale(string address, int points, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)
+    public IObservable<Stale<Responce<ushort[]>>> ObserveWordsStale(string address, int points, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)
         => ObserveWords(address, points, pollInterval, minimumUpdateSpacing).DetectStale(staleAfter, _scheduler);
 
     /// <summary>
@@ -1317,7 +1317,7 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     /// <param name="heartbeatAfter">Heartbeat interval.</param>
     /// <param name="minimumUpdateSpacing">Minimum spacing between notifications.</param>
     /// <returns>Observable heartbeat stream.</returns>
-    public IObservable<IHeartbeat<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupHeartbeat(string groupName, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null)
+    public IObservable<Heartbeat<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupHeartbeat(string groupName, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null)
         => ObserveTagGroup(groupName, pollInterval, minimumUpdateSpacing).Heartbeat(heartbeatAfter, _scheduler);
 
     /// <summary>
@@ -1328,7 +1328,7 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     /// <param name="staleAfter">Staleness threshold.</param>
     /// <param name="minimumUpdateSpacing">Minimum spacing between notifications.</param>
     /// <returns>Observable stale-aware stream.</returns>
-    public IObservable<IStale<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupStale(string groupName, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)
+    public IObservable<Stale<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupStale(string groupName, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)
         => ObserveTagGroup(groupName, pollInterval, minimumUpdateSpacing).DetectStale(staleAfter, _scheduler);
 
     /// <summary>
@@ -1359,7 +1359,7 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     /// </summary>
     /// <param name="staleAfter">Staleness threshold.</param>
     /// <returns>Observable health states.</returns>
-    public IObservable<IStale<MitsubishiConnectionState>> ObserveConnectionHealth(TimeSpan staleAfter)
+    public IObservable<Stale<MitsubishiConnectionState>> ObserveConnectionHealth(TimeSpan staleAfter)
         => ConnectionStates.DetectStale(staleAfter, _scheduler);
 
     /// <inheritdoc/>
@@ -1610,7 +1610,7 @@ public sealed partial class MitsubishiRx : IDisposable, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(payloadFactory);
         var observable = Observable.Defer(() => Observable.FromAsync(ct => ExecuteOnceAsync(payloadFactory, expectedLength, description, ct)))
-            .RetryWithBackoff(maxRetries, TimeSpan.FromMilliseconds(100), scheduler: _scheduler)
+            .RetryWithBackoff(maxRetries, TimeSpan.FromMilliseconds(100), backoffFactor: 2.0, maxDelay: null, scheduler: _scheduler)
             .Catch<Responce<byte[]>, Exception>(ex => Observable.Return(new Responce<byte[]>().Fail(ex.Message, exception: ex)));
 
         return await observable.FirstAsync().ToTask(cancellationToken).ConfigureAwait(false);
