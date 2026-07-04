@@ -11,9 +11,9 @@
     <Company>ChrisPulman</Company>
     <NoWarn>CS1591;IDE0190;IDE1006</NoWarn>
     <Nullable>enable</Nullable>
-    <PackageIcon>logo.png</PackageIcon>
+    <PackageIcon>image-icon.png</PackageIcon>
     <Configurations>Debug;Release;PreRelease</Configurations>
-    <PackageReleaseNotes>ReactiveUI.Extensions- and SerialPortRx-based Mitsubishi PLC support across Ethernet (1E/3E/4E) and serial (1C/3C/4C) MC protocol frames.</PackageReleaseNotes>
+    <PackageReleaseNotes>ReactiveUI.Primitives- and SerialPortRx-based Mitsubishi PLC support across Ethernet (1E/3E/4E) and serial (1C/3C/4C) MC protocol frames.</PackageReleaseNotes>
     <PackageTags>Mitsubishi;MELSEC;PLC;MCProtocol;SLMP;Ethernet;Serial;SerialPortRx;ReactiveUI;Rx;Observable;Reactive;IndustrialAutomation</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <EnableNETAnalyzers>True</EnableNETAnalyzers>
@@ -33,6 +33,10 @@
     <IncludePackageReferencesDuringMarkupCompilation>true</IncludePackageReferencesDuringMarkupCompilation>
   </PropertyGroup>
 
+  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net11.0'))">
+    <Features>$(Features);runtime-async=on</Features>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
@@ -42,7 +46,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)images\logo.png" Pack="true" PackagePath="\"/>
+    <None Include="$(MSBuildThisFileDirectory)images\image-icon.png" Pack="true" PackagePath="\"/>
     <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="LICENSE" />
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="README.md" />
   </ItemGroup>
@@ -54,8 +58,7 @@
   <ItemGroup>
     <!--<Compile Update="**\*.cs" DependentUpon="I%(Filename).cs" />-->
     <PackageReference Include="Nerdbank.GitVersioning" Version="3.10.85" PrivateAssets="all" />
-    <PackageReference Include="stylecop.analyzers" Version="1.2.0-beta.556" PrivateAssets="all" />
+    <PackageReference Include="StyleSharp.Analyzers" Version="3.14.0" PrivateAssets="all" />
     <PackageReference Include="Roslynator.Analyzers" Version="4.15.0" PrivateAssets="All" />
-    <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" Link="stylecop.json" />
   </ItemGroup>
 </Project>

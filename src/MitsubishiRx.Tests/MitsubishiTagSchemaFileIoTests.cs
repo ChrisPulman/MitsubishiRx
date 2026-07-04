@@ -1,10 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
+
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiTagSchemaFileIoTests type.</summary>
 public sealed class MitsubishiTagSchemaFileIoTests
 {
+    /// <summary>Executes the SaveAndLoadJsonRoundTripPreservesTagsAndGroups operation.</summary>
+    /// <returns>The SaveAndLoadJsonRoundTripPreservesTagsAndGroups operation result.</returns>
     [Test]
     public async Task SaveAndLoadJsonRoundTripPreservesTagsAndGroups()
     {
@@ -20,7 +30,7 @@ public sealed class MitsubishiTagSchemaFileIoTests
             await Assert.That(loaded.Count).IsEqualTo(3);
             await Assert.That(loaded.GroupCount).IsEqualTo(1);
             await Assert.That(loaded.GetRequired("OperatorMessage").Encoding).IsEqualTo("Utf8");
-            await Assert.That(loaded.GetRequiredGroup("Overview").ResolvedTagNames).IsEquivalentTo(new[] { "SignedTemp", "TotalCount", "OperatorMessage" });
+            await Assert.That(loaded.GetRequiredGroup("Overview").ResolvedTagNames).IsEquivalentTo([ "SignedTemp", "TotalCount", "OperatorMessage"]);
         }
         finally
         {
@@ -28,6 +38,8 @@ public sealed class MitsubishiTagSchemaFileIoTests
         }
     }
 
+    /// <summary>Executes the SaveAndLoadYamlRoundTripPreservesTagsAndGroups operation.</summary>
+    /// <returns>The SaveAndLoadYamlRoundTripPreservesTagsAndGroups operation result.</returns>
     [Test]
     public async Task SaveAndLoadYamlRoundTripPreservesTagsAndGroups()
     {
@@ -50,6 +62,8 @@ public sealed class MitsubishiTagSchemaFileIoTests
         }
     }
 
+    /// <summary>Executes the SaveAndLoadYamlWithYmlExtensionUsesYamlFormatDetection operation.</summary>
+    /// <returns>The SaveAndLoadYamlWithYmlExtensionUsesYamlFormatDetection operation result.</returns>
     [Test]
     public async Task SaveAndLoadYamlWithYmlExtensionUsesYamlFormatDetection()
     {
@@ -72,6 +86,8 @@ public sealed class MitsubishiTagSchemaFileIoTests
         }
     }
 
+    /// <summary>Executes the SaveAndLoadCsvUsesCsvFormatDetection operation.</summary>
+    /// <returns>The SaveAndLoadCsvUsesCsvFormatDetection operation result.</returns>
     [Test]
     public async Task SaveAndLoadCsvUsesCsvFormatDetection()
     {
@@ -102,6 +118,8 @@ public sealed class MitsubishiTagSchemaFileIoTests
         }
     }
 
+    /// <summary>Executes the LoadRejectsUnsupportedSchemaExtensions operation.</summary>
+    /// <returns>The LoadRejectsUnsupportedSchemaExtensions operation result.</returns>
     [Test]
     public async Task LoadRejectsUnsupportedSchemaExtensions()
     {
@@ -111,11 +129,7 @@ public sealed class MitsubishiTagSchemaFileIoTests
         {
             File.WriteAllText(path, "unsupported");
 
-            var exception = Assert.Throws<NotSupportedException>(() => MitsubishiTagDatabase.Load(path));
-            if (exception is null)
-            {
-                throw new InvalidOperationException("Expected Load to reject unsupported schema extensions.");
-            }
+            var exception = Assert.Throws<NotSupportedException>(() => MitsubishiTagDatabase.Load(path)) ?? throw new InvalidOperationException("Expected Load to reject unsupported schema extensions.");
 
             await Assert.That(exception.Message.Contains(".txt", StringComparison.OrdinalIgnoreCase)).IsTrue();
         }
@@ -125,12 +139,14 @@ public sealed class MitsubishiTagSchemaFileIoTests
         }
     }
 
+    /// <summary>Executes the CreateSchemaDatabase operation.</summary>
+    /// <returns>The CreateSchemaDatabase operation result.</returns>
     private static MitsubishiTagDatabase CreateSchemaDatabase()
     {
         var database = new MitsubishiTagDatabase(
         [
-            new MitsubishiTagDefinition("SignedTemp", "D700", DataType: "Int16", Signed: true, Units: "°C"),
-            new MitsubishiTagDefinition("TotalCount", "D400", DataType: "UInt32", ByteOrder: "LittleEndian", Units: "items"),
+            new MitsubishiTagDefinition("SignedTemp", "D700", DataType: "Int16", Units: "°C", Signed: true),
+            new MitsubishiTagDefinition("TotalCount", "D400", DataType: "UInt32", Units: "items", ByteOrder: "LittleEndian"),
             new MitsubishiTagDefinition("OperatorMessage", "D600", DataType: "String", Length: 2, Encoding: "Utf8", ByteOrder: "BigEndian"),
         ]);
 
@@ -138,14 +154,21 @@ public sealed class MitsubishiTagSchemaFileIoTests
         return database;
     }
 
+    /// <summary>Executes the CreateTempPath operation.</summary>
+    /// <param name="extension">The extension parameter.</param>
+    /// <returns>The CreateTempPath operation result.</returns>
     private static string CreateTempPath(string extension)
         => Path.Combine(Path.GetTempPath(), $"mitsubishirx-schema-{Guid.NewGuid():N}.{extension}");
 
+    /// <summary>Executes the DeleteIfExists operation.</summary>
+    /// <param name="path">The path parameter.</param>
     private static void DeleteIfExists(string path)
     {
-        if (File.Exists(path))
+        if (!File.Exists(path))
         {
-            File.Delete(path);
+            return;
         }
+
+        File.Delete(path);
     }
 }

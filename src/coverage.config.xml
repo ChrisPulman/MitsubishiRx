@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+  <CodeCoverage>
+    <ModulePaths>
+      <Include>
+        <ModulePath>.*[\\/]MitsubishiRx\.dll$</ModulePath>
+        <ModulePath>.*[\\/]MitsubishiRx\.Reactive\.dll$</ModulePath>
+      </Include>
+      <Exclude>
+        <ModulePath>.*[\\/]MitsubishiRx\.Generators\.dll$</ModulePath>
+        <ModulePath>.*[\\/]MitsubishiRx\.Tests\.dll$</ModulePath>
+        <ModulePath>.*[\\/]MitsubishiRx\.Reactive\.Tests\.dll$</ModulePath>
+      </Exclude>
+    </ModulePaths>
+  </CodeCoverage>
+</Configuration>

@@ -1,11 +1,19 @@
-using Microsoft.Reactive.Testing;
-using System.Collections.Concurrent;
-using System.Reactive.Linq;
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiReactiveWritePipelineTests type.</summary>
 public sealed class MitsubishiReactiveWritePipelineTests
 {
+    /// <summary>Executes the QueuedReactiveWordWritePipelinePreservesWriteOrder operation.</summary>
+    /// <returns>The QueuedReactiveWordWritePipelinePreservesWriteOrder operation result.</returns>
     [Test]
     public async Task QueuedReactiveWordWritePipelinePreservesWriteOrder()
     {
@@ -40,6 +48,8 @@ public sealed class MitsubishiReactiveWritePipelineTests
             .IsEquivalentTo(baselineTransport.Requests.Select(static request => Convert.ToHexString(request.Payload)).ToArray());
     }
 
+    /// <summary>Executes the LatestWinsReactiveWordWritePipelineCollapsesBurstToFinalValue operation.</summary>
+    /// <returns>The LatestWinsReactiveWordWritePipelineCollapsesBurstToFinalValue operation result.</returns>
     [Test]
     public async Task LatestWinsReactiveWordWritePipelineCollapsesBurstToFinalValue()
     {
@@ -64,6 +74,8 @@ public sealed class MitsubishiReactiveWritePipelineTests
         await Assert.That(Convert.ToHexString(transport.Requests[0].Payload)).IsEqualTo(Convert.ToHexString(baselineTransport.Requests[0].Payload));
     }
 
+    /// <summary>Executes the CoalescingReactiveWordWritePipelineEmitsLatestValueAfterWindow operation.</summary>
+    /// <returns>The CoalescingReactiveWordWritePipelineEmitsLatestValueAfterWindow operation result.</returns>
     [Test]
     public async Task CoalescingReactiveWordWritePipelineEmitsLatestValueAfterWindow()
     {
@@ -90,13 +102,15 @@ public sealed class MitsubishiReactiveWritePipelineTests
         await Assert.That(Convert.ToHexString(transport.Requests[0].Payload)).IsEqualTo(Convert.ToHexString(baselineTransport.Requests[0].Payload));
     }
 
+    /// <summary>Executes the QueuedReactiveTagWritePipelineDelegatesThroughTypedTagWriter operation.</summary>
+    /// <returns>The QueuedReactiveTagWritePipelineDelegatesThroughTypedTagWriter operation result.</returns>
     [Test]
     public async Task QueuedReactiveTagWritePipelineDelegatesThroughTypedTagWriter()
     {
         var scheduler = new TestScheduler();
         var transport = new FakeTransport([Ack()]);
         var client = CreateClient(transport, scheduler);
-        client.TagDatabase = new MitsubishiTagDatabase(
+        client.TagDatabase = new(
         [
             new MitsubishiTagDefinition("RecipeNumber", "D300", DataType: "UInt16"),
         ]);
@@ -120,6 +134,10 @@ public sealed class MitsubishiReactiveWritePipelineTests
         await Assert.That(Convert.ToHexString(transport.Requests[0].Payload)).IsEqualTo(Convert.ToHexString(baselineTransport.Requests[0].Payload));
     }
 
+    /// <summary>Executes the CreateClient operation.</summary>
+    /// <param name="transport">The transport parameter.</param>
+    /// <param name="scheduler">The scheduler parameter.</param>
+    /// <returns>The CreateClient operation result.</returns>
     private static MitsubishiRx CreateClient(FakeTransport transport, TestScheduler scheduler)
         => new(
             new MitsubishiClientOptions(
@@ -133,6 +151,8 @@ public sealed class MitsubishiReactiveWritePipelineTests
             transport,
             scheduler);
 
+    /// <summary>Executes the Ack operation.</summary>
+    /// <returns>The Ack operation result.</returns>
     private static byte[] Ack()
         => [0xD0, 0x00, 0x00, 0xFF, 0xFF, 0x03, 0x00, 0x02, 0x00, 0x00, 0x00];
 }

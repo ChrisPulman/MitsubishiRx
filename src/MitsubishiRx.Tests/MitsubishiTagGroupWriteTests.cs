@@ -1,12 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive.Concurrency;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiTagGroupWriteTests type.</summary>
 public sealed class MitsubishiTagGroupWriteTests
 {
+    /// <summary>Executes the ValidateTagGroupWriteReportsUnsupportedValueTypesAndUnknownTags operation.</summary>
+    /// <returns>The ValidateTagGroupWriteReportsUnsupportedValueTypesAndUnknownTags operation result.</returns>
     [Test]
     public async Task ValidateTagGroupWriteReportsUnsupportedValueTypesAndUnknownTags()
     {
@@ -17,7 +25,8 @@ public sealed class MitsubishiTagGroupWriteTests
         ]);
         database.AddGroup(new MitsubishiTagGroupDefinition("RecipeWrite", ["RecipeNumber", "OperatorMessage"]));
 
-        var client = new MitsubishiRx(new MitsubishiClientOptions(
+        var client = new MitsubishiRx(
+            new MitsubishiClientOptions(
             Host: "127.0.0.1",
             Port: 5040,
             FrameType: MitsubishiFrameType.ThreeE,
@@ -25,7 +34,7 @@ public sealed class MitsubishiTagGroupWriteTests
             TransportKind: MitsubishiTransportKind.Tcp,
             Route: MitsubishiRoute.Default,
             MonitoringTimer: 0x0010),
-            new FakeTransport(Array.Empty<byte[]>()),
+            new FakeTransport([]),
             Scheduler.Immediate)
         {
             TagDatabase = database,
@@ -44,6 +53,8 @@ public sealed class MitsubishiTagGroupWriteTests
         await Assert.That(result.ErrList.Any(static err => err.Contains("MissingTag", StringComparison.OrdinalIgnoreCase))).IsTrue();
     }
 
+    /// <summary>Executes the WriteTagGroupValuesAsyncWritesOnlyProvidedValuesInGroupOrder operation.</summary>
+    /// <returns>The WriteTagGroupValuesAsyncWritesOnlyProvidedValuesInGroupOrder operation result.</returns>
     [Test]
     public async Task WriteTagGroupValuesAsyncWritesOnlyProvidedValuesInGroupOrder()
     {
@@ -102,6 +113,8 @@ public sealed class MitsubishiTagGroupWriteTests
         await Assert.That(transport.Requests[1].Description).IsEqualTo("Write words D600");
     }
 
+    /// <summary>Executes the WriteTagGroupSnapshotAsyncWritesTypedSnapshotValues operation.</summary>
+    /// <returns>The WriteTagGroupSnapshotAsyncWritesTypedSnapshotValues operation result.</returns>
     [Test]
     public async Task WriteTagGroupSnapshotAsyncWritesTypedSnapshotValues()
     {
@@ -147,11 +160,10 @@ public sealed class MitsubishiTagGroupWriteTests
 
         await Assert.That(result.IsSucceed).IsTrue();
         await Assert.That(transport.Requests.Count).IsEqualTo(3);
-        await Assert.That(transport.Requests.Select(static request => request.Description).ToArray()).IsEquivalentTo(new[]
-        {
+        await Assert.That(transport.Requests.Select(static request => request.Description).ToArray()).IsEquivalentTo([
             "Write words D700",
             "Write words D400",
             "Write words D600",
-        });
+        ]);
     }
 }

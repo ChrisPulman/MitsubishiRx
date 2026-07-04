@@ -1,14 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive.Concurrency;
-using System.Reactive.Linq;
-using Microsoft.Reactive.Testing;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiTagDatabaseRolloutPolicyTests type.</summary>
 public sealed class MitsubishiTagDatabaseRolloutPolicyTests
 {
+    /// <summary>Executes the CompareWithClassifiesMetadataAddressDatatypeAndGroupMembershipChanges operation.</summary>
+    /// <returns>The CompareWithClassifiesMetadataAddressDatatypeAndGroupMembershipChanges operation result.</returns>
     [Test]
     public async Task CompareWithClassifiesMetadataAddressDatatypeAndGroupMembershipChanges()
     {
@@ -32,6 +38,8 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
         await Assert.That(diff.ChangedGroups.Single().ChangeKinds).IsEqualTo(MitsubishiSchemaChangeKind.GroupMembershipChange);
     }
 
+    /// <summary>Executes the PreviewTagDatabaseDiffWithSafeMetadataAndGroupsPolicyRejectsAddressAndDatatypeChanges operation.</summary>
+    /// <returns>The PreviewTagDatabaseDiffWithSafeMetadataAndGroupsPolicyRejectsAddressAndDatatypeChanges operation result.</returns>
     [Test]
     public async Task PreviewTagDatabaseDiffWithSafeMetadataAndGroupsPolicyRejectsAddressAndDatatypeChanges()
     {
@@ -58,6 +66,8 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
         }
     }
 
+    /// <summary>Executes the LoadAndValidateTagDatabaseWithSafeMetadataAndGroupsPolicyAppliesAllowedChanges operation.</summary>
+    /// <returns>The LoadAndValidateTagDatabaseWithSafeMetadataAndGroupsPolicyAppliesAllowedChanges operation result.</returns>
     [Test]
     public async Task LoadAndValidateTagDatabaseWithSafeMetadataAndGroupsPolicyAppliesAllowedChanges()
     {
@@ -73,7 +83,7 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
 
             await Assert.That(result.IsSucceed).IsTrue();
             await Assert.That(client.TagDatabase!.GetRequired("OperatorMessage").Description).IsEqualTo("Updated HMI text");
-            await Assert.That(client.TagDatabase.GetRequiredGroup("Overview").ResolvedTagNames).IsEquivalentTo(new[] { "MotorSpeed", "OperatorMessage" });
+            await Assert.That(client.TagDatabase.GetRequiredGroup("Overview").ResolvedTagNames).IsEquivalentTo([ "MotorSpeed", "OperatorMessage"]);
         }
         finally
         {
@@ -81,6 +91,8 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
         }
     }
 
+    /// <summary>Executes the ObserveTagDatabaseReloadWithSafeMetadataAndGroupsPolicyRejectsAddressChangeAndPreservesDatabase operation.</summary>
+    /// <returns>The ObserveTagDatabaseReloadWithSafeMetadataAndGroupsPolicyRejectsAddressChangeAndPreservesDatabase operation result.</returns>
     [Test]
     public async Task ObserveTagDatabaseReloadWithSafeMetadataAndGroupsPolicyRejectsAddressChangeAndPreservesDatabase()
     {
@@ -113,6 +125,9 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
         }
     }
 
+    /// <summary>Executes the CreateClient operation.</summary>
+    /// <param name="scheduler">The scheduler parameter.</param>
+    /// <returns>The CreateClient operation result.</returns>
     private static MitsubishiRx CreateClient(IScheduler scheduler)
     {
         var options = new MitsubishiClientOptions(
@@ -128,6 +143,8 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
         return new MitsubishiRx(options, new FakeTransport([]), scheduler);
     }
 
+    /// <summary>Executes the CreatePolicyCurrentDatabase operation.</summary>
+    /// <returns>The CreatePolicyCurrentDatabase operation result.</returns>
     private static MitsubishiTagDatabase CreatePolicyCurrentDatabase()
     {
         var database = new MitsubishiTagDatabase(
@@ -141,6 +158,8 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
         return database;
     }
 
+    /// <summary>Executes the CreatePolicyUpdatedDatabase operation.</summary>
+    /// <returns>The CreatePolicyUpdatedDatabase operation result.</returns>
     private static MitsubishiTagDatabase CreatePolicyUpdatedDatabase()
     {
         var database = new MitsubishiTagDatabase(
@@ -154,6 +173,8 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
         return database;
     }
 
+    /// <summary>Executes the CreateMetadataAndGroupOnlyDatabase operation.</summary>
+    /// <returns>The CreateMetadataAndGroupOnlyDatabase operation result.</returns>
     private static MitsubishiTagDatabase CreateMetadataAndGroupOnlyDatabase()
     {
         var database = new MitsubishiTagDatabase(
@@ -167,6 +188,8 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
         return database;
     }
 
+    /// <summary>Executes the CreateAddressOnlyUpdatedDatabase operation.</summary>
+    /// <returns>The CreateAddressOnlyUpdatedDatabase operation result.</returns>
     private static MitsubishiTagDatabase CreateAddressOnlyUpdatedDatabase()
     {
         var database = new MitsubishiTagDatabase(
@@ -180,14 +203,21 @@ public sealed class MitsubishiTagDatabaseRolloutPolicyTests
         return database;
     }
 
+    /// <summary>Executes the CreateTempPath operation.</summary>
+    /// <param name="extension">The extension parameter.</param>
+    /// <returns>The CreateTempPath operation result.</returns>
     private static string CreateTempPath(string extension)
         => Path.Combine(Path.GetTempPath(), $"mitsubishirx-policy-{Guid.NewGuid():N}.{extension}");
 
+    /// <summary>Executes the DeleteIfExists operation.</summary>
+    /// <param name="path">The path parameter.</param>
     private static void DeleteIfExists(string path)
     {
-        if (File.Exists(path))
+        if (!File.Exists(path))
         {
-            File.Delete(path);
+            return;
         }
+
+        File.Delete(path);
     }
 }

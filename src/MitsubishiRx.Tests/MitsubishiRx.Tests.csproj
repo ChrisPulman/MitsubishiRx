@@ -6,7 +6,6 @@
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <EnableNETAnalyzers>false</EnableNETAnalyzers>
-    <RunAnalyzers>false</RunAnalyzers>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,7 +13,29 @@
     <ProjectReference Include="..\MitsubishiRx.Generators\MitsubishiRx.Generators.csproj"
                       SetConfiguration="Configuration=$(Configuration)" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" />
-    <PackageReference Include="Microsoft.Reactive.Testing" Version="6.1.0" />
+    <PackageReference Include="ReactiveUI.Primitives" Version="6.0.0" />
+    <PackageReference Include="ReactiveUI.Primitives.Async" Version="6.0.0" />
+    <PackageReference Include="ReactiveUI.Primitives.Extensions" Version="6.0.0" />
+    <PackageReference Include="SerialPortRx" Version="5.0.20" ExcludeAssets="analyzers" />
     <PackageReference Include="TUnit" Version="1.5*" />
+  </ItemGroup>
+
+  <Target Name="RemoveSerialPortRxSourceGeneratorFromTests" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="'%(Analyzer.NuGetPackageId)' == 'SerialPortRx'" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <Using Include="ReactiveUI.Primitives" />
+    <Using Include="ReactiveUI.Primitives.Concurrency" />
+    <Using Include="ReactiveUI.Primitives.Extensions" />
+    <Using Include="ReactiveUI.Primitives.Extensions.Operators" />
+    <Using Include="ReactiveUI.Primitives.Signals" />
+    <Using Include="ReactiveUI.Primitives.Concurrency.ISequencer" Alias="IScheduler" />
+    <Using Include="ReactiveUI.Primitives.Concurrency.Sequencer" Alias="Scheduler" />
+    <Using Include="ReactiveUI.Primitives.Concurrency.VirtualClock" Alias="TestScheduler" />
+    <Using Include="ReactiveUI.Primitives.RxVoid" Alias="Unit" />
+    <Using Include="ReactiveUI.Primitives.Signals.Signal" Alias="Observable" />
   </ItemGroup>
 </Project>

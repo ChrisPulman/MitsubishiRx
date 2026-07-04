@@ -1,10 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
+
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiTagSchemaSerializationTests type.</summary>
 public sealed class MitsubishiTagSchemaSerializationTests
 {
+    /// <summary>Executes the ToJsonAndFromJsonRoundTripPreservesTagsAndGroups operation.</summary>
+    /// <returns>The ToJsonAndFromJsonRoundTripPreservesTagsAndGroups operation result.</returns>
     [Test]
     public async Task ToJsonAndFromJsonRoundTripPreservesTagsAndGroups()
     {
@@ -27,9 +37,11 @@ public sealed class MitsubishiTagSchemaSerializationTests
         await Assert.That(operatorMessage.ByteOrder).IsEqualTo("BigEndian");
 
         var group = roundTripped.GetRequiredGroup("Overview");
-        await Assert.That(group.ResolvedTagNames).IsEquivalentTo(new[] { "SignedTemp", "TotalCount", "OperatorMessage" });
+        await Assert.That(group.ResolvedTagNames).IsEquivalentTo([ "SignedTemp", "TotalCount", "OperatorMessage"]);
     }
 
+    /// <summary>Executes the ToYamlAndFromYamlRoundTripPreservesTagsAndGroups operation.</summary>
+    /// <returns>The ToYamlAndFromYamlRoundTripPreservesTagsAndGroups operation result.</returns>
     [Test]
     public async Task ToYamlAndFromYamlRoundTripPreservesTagsAndGroups()
     {
@@ -45,10 +57,12 @@ public sealed class MitsubishiTagSchemaSerializationTests
         await Assert.That(roundTripped.GetRequiredGroup("Overview").ResolvedTagNames[0]).IsEqualTo("SignedTemp");
     }
 
+    /// <summary>Executes the FromYamlParsesManualSchemaDocumentWithGroups operation.</summary>
+    /// <returns>The FromYamlParsesManualSchemaDocumentWithGroups operation result.</returns>
     [Test]
     public async Task FromYamlParsesManualSchemaDocumentWithGroups()
     {
-        var yaml = """
+        const string yaml = """
         tags:
           - name: SignedTemp
             address: D700
@@ -74,15 +88,17 @@ public sealed class MitsubishiTagSchemaSerializationTests
         await Assert.That(database.GroupCount).IsEqualTo(1);
         await Assert.That(database.GetRequired("SignedTemp").Signed).IsTrue();
         await Assert.That(database.GetRequired("OperatorMessage").Encoding).IsEqualTo("Utf8");
-        await Assert.That(database.GetRequiredGroup("Overview").ResolvedTagNames).IsEquivalentTo(new[] { "SignedTemp", "OperatorMessage" });
+        await Assert.That(database.GetRequiredGroup("Overview").ResolvedTagNames).IsEquivalentTo([ "SignedTemp", "OperatorMessage"]);
     }
 
+    /// <summary>Executes the CreateSchemaDatabase operation.</summary>
+    /// <returns>The CreateSchemaDatabase operation result.</returns>
     private static MitsubishiTagDatabase CreateSchemaDatabase()
     {
         var database = new MitsubishiTagDatabase(
         [
-            new MitsubishiTagDefinition("SignedTemp", "D700", DataType: "Int16", Signed: true, Units: "°C"),
-            new MitsubishiTagDefinition("TotalCount", "D400", DataType: "UInt32", ByteOrder: "LittleEndian", Units: "items"),
+            new MitsubishiTagDefinition("SignedTemp", "D700", DataType: "Int16", Units: "°C", Signed: true),
+            new MitsubishiTagDefinition("TotalCount", "D400", DataType: "UInt32", Units: "items", ByteOrder: "LittleEndian"),
             new MitsubishiTagDefinition("OperatorMessage", "D600", DataType: "String", Length: 2, Encoding: "Utf8", ByteOrder: "BigEndian"),
         ]);
 

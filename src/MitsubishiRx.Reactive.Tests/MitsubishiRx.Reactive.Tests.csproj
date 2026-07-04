@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <DefineConstants>$(DefineConstants);REACTIVE_SHIM</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\MitsubishiRx.Tests\**\*.cs"
+             Exclude="..\MitsubishiRx.Tests\bin\**;..\MitsubishiRx.Tests\obj\**;..\MitsubishiRx.Tests\MitsubishiGeneratedClientTests.cs;..\MitsubishiRx.Tests\MitsubishiSerialSupportTests.cs"
+             Link="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MitsubishiRx.Reactive\MitsubishiRx.Reactive.csproj" />
+    <PackageReference Include="Microsoft.Reactive.Testing" Version="6.1.0" />
+    <PackageReference Include="ReactiveUI.Primitives.Reactive" Version="6.0.0" />
+    <PackageReference Include="ReactiveUI.Primitives.Extensions.Reactive" Version="6.0.0" />
+    <PackageReference Include="SerialPortRx.Reactive" Version="5.0.20" ExcludeAssets="analyzers" />
+    <PackageReference Include="TUnit" Version="1.5*" />
+  </ItemGroup>
+
+  <Target Name="RemoveSerialPortRxReactiveSourceGeneratorFromTests" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="'%(Analyzer.NuGetPackageId)' == 'SerialPortRx.Reactive'" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <Using Include="ReactiveUI.Primitives.Disposables" />
+    <Using Include="ReactiveUI.Primitives.Extensions" />
+    <Using Include="ReactiveUI.Primitives.Signals" />
+    <Using Include="ReactiveUI.Primitives.Reactive" />
+    <Using Include="ReactiveUI.Primitives.Reactive.Concurrency" />
+    <Using Include="ReactiveUI.Primitives.Extensions.Reactive" />
+    <Using Include="ReactiveUI.Primitives.Extensions.Reactive.Operators" />
+    <Using Include="CP.IO.Ports.Reactive" />
+    <Using Include="System.Reactive.Concurrency.IScheduler" Alias="IScheduler" />
+    <Using Include="System.Reactive.Concurrency.Scheduler" Alias="Scheduler" />
+    <Using Include="Microsoft.Reactive.Testing.TestScheduler" Alias="TestScheduler" />
+    <Using Include="System.Reactive.Unit" Alias="Unit" />
+    <Using Include="System.Reactive.Linq.Observable" Alias="Observable" />
+  </ItemGroup>
+</Project>

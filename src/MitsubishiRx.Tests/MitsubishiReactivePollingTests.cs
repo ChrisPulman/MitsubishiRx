@@ -1,14 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive.Linq;
-using Microsoft.Reactive.Testing;
-using ReactiveUI.Extensions;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiReactivePollingTests type.</summary>
 public sealed class MitsubishiReactivePollingTests
 {
+    /// <summary>Executes the ObserveWordsHeartbeatEmitsHeartbeatBetweenPolls operation.</summary>
+    /// <returns>The ObserveWordsHeartbeatEmitsHeartbeatBetweenPolls operation result.</returns>
     [Test]
     public async Task ObserveWordsHeartbeatEmitsHeartbeatBetweenPolls()
     {

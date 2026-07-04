@@ -1,50 +1,32 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
+
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive;
+#else
 
 namespace MitsubishiRx;
+#endif
 
-/// <summary>
-/// Defines the supported Mitsubishi PLC / Ethernet endpoint families.
-/// </summary>
+/// <summary>Defines the CpuType values.</summary>
 public enum CpuType
 {
-    /// <summary>
-    /// No explicit family hint.
-    /// </summary>
+    /// <summary>Represents the None option.</summary>
     None,
-
-    /// <summary>
-    /// MELSEC-A / AnS family using A-compatible Ethernet modules.
-    /// </summary>
+    /// <summary>Represents the ASeries option.</summary>
     ASeries,
-
-    /// <summary>
-    /// MELSEC-QnA family.
-    /// </summary>
+    /// <summary>Represents the QnaSeries option.</summary>
     QnaSeries,
-
-    /// <summary>
-    /// MELSEC-Q family.
-    /// </summary>
+    /// <summary>Represents the QSeries option.</summary>
     QSeries,
-
-    /// <summary>
-    /// MELSEC-L family.
-    /// </summary>
+    /// <summary>Represents the LSeries option.</summary>
     LSeries,
-
-    /// <summary>
-    /// MELSEC-FX3 family.
-    /// </summary>
+    /// <summary>Represents the Fx3 option.</summary>
     Fx3,
-
-    /// <summary>
-    /// MELSEC iQ-F / FX5 family.
-    /// </summary>
+    /// <summary>Represents the Fx5 option.</summary>
     Fx5,
-
-    /// <summary>
-    /// MELSEC iQ-R family.
-    /// </summary>
+    /// <summary>Represents the IQR option.</summary>
     IQR,
 }

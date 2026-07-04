@@ -1,9 +1,20 @@
-using Microsoft.Reactive.Testing;
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
+
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiReactiveValueTests type.</summary>
 public sealed class MitsubishiReactiveValueTests
 {
+    /// <summary>Executes the ReactiveValueFromSuccessfulResponseUsesGoodQualityAndMetadata operation.</summary>
+    /// <returns>The ReactiveValueFromSuccessfulResponseUsesGoodQualityAndMetadata operation result.</returns>
     [Test]
     public async Task ReactiveValueFromSuccessfulResponseUsesGoodQualityAndMetadata()
     {
@@ -18,9 +29,11 @@ public sealed class MitsubishiReactiveValueTests
         await Assert.That(value.IsHeartbeat).IsFalse();
         await Assert.That(value.IsStale).IsFalse();
         await Assert.That(value.Error).IsEqualTo(string.Empty);
-        await Assert.That(value.Value).IsEquivalentTo(new ushort[] { 0x1234 });
+        await Assert.That(value.Value).IsEquivalentTo([(ushort)0x1234]);
     }
 
+    /// <summary>Executes the ReactiveValueFromFailedResponseUsesErrorQualityAndCapturesError operation.</summary>
+    /// <returns>The ReactiveValueFromFailedResponseUsesErrorQualityAndCapturesError operation result.</returns>
     [Test]
     public async Task ReactiveValueFromFailedResponseUsesErrorQualityAndCapturesError()
     {
@@ -42,6 +55,8 @@ public sealed class MitsubishiReactiveValueTests
         await Assert.That(value.Value is null).IsTrue();
     }
 
+    /// <summary>Executes the HeartbeatAndStaleFactoriesStampQualityFlags operation.</summary>
+    /// <returns>The HeartbeatAndStaleFactoriesStampQualityFlags operation result.</returns>
     [Test]
     public async Task HeartbeatAndStaleFactoriesStampQualityFlags()
     {

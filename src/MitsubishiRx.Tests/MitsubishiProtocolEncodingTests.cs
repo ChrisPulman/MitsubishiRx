@@ -1,12 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive.Concurrency;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiProtocolEncodingTests type.</summary>
 public sealed class MitsubishiProtocolEncodingTests
 {
+    /// <summary>Executes the ReadWordsAsyncEncodesBinary3ERequest operation.</summary>
+    /// <returns>The ReadWordsAsyncEncodesBinary3ERequest operation result.</returns>
     [Test]
     public async Task ReadWordsAsyncEncodesBinary3ERequest()
     {
@@ -38,6 +46,8 @@ public sealed class MitsubishiProtocolEncodingTests
         ]);
     }
 
+    /// <summary>Executes the ExecuteRawAsyncEncodesBinary4ERequestWithSerialNumber operation.</summary>
+    /// <returns>The ExecuteRawAsyncEncodesBinary4ERequestWithSerialNumber operation result.</returns>
     [Test]
     public async Task ExecuteRawAsyncEncodesBinary4ERequestWithSerialNumber()
     {
@@ -69,6 +79,8 @@ public sealed class MitsubishiProtocolEncodingTests
         ]);
     }
 
+    /// <summary>Executes the ReadWordsAsyncEncodesBinary1ERequest operation.</summary>
+    /// <returns>The ReadWordsAsyncEncodesBinary1ERequest operation result.</returns>
     [Test]
     public async Task ReadWordsAsyncEncodesBinary1ERequest()
     {
@@ -99,6 +111,8 @@ public sealed class MitsubishiProtocolEncodingTests
         await Assert.That(transport.Requests[0].ExpectedResponseLength).IsEqualTo(6);
     }
 
+    /// <summary>Executes the ReadWordsAsyncParsesAscii3EResponse operation.</summary>
+    /// <returns>The ReadWordsAsyncParsesAscii3EResponse operation result.</returns>
     [Test]
     public async Task ReadWordsAsyncParsesAscii3EResponse()
     {
@@ -125,6 +139,8 @@ public sealed class MitsubishiProtocolEncodingTests
         await Assert.That(System.Text.Encoding.ASCII.GetString(transport.Requests[0].Payload)).IsEqualTo("500000FF03FF000012001004010000000064D*0002");
     }
 
+    /// <summary>Executes the ReadMemoryAsyncEncodesRequestedLength operation.</summary>
+    /// <returns>The ReadMemoryAsyncEncodesRequestedLength operation result.</returns>
     [Test]
     public async Task ReadMemoryAsyncEncodesRequestedLength()
     {
