@@ -1,9 +1,20 @@
-using System.Reactive.Concurrency;
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
+
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiTagGroupTests type.</summary>
 public sealed class MitsubishiTagGroupTests
 {
+    /// <summary>Executes the ValidateTagDatabaseFailsForInvalidAddressesAndUnknownGroupMembers operation.</summary>
+    /// <returns>The ValidateTagDatabaseFailsForInvalidAddressesAndUnknownGroupMembers operation result.</returns>
     [Test]
     public async Task ValidateTagDatabaseFailsForInvalidAddressesAndUnknownGroupMembers()
     {
@@ -15,7 +26,8 @@ public sealed class MitsubishiTagGroupTests
 
         database.AddGroup(new MitsubishiTagGroupDefinition("Line1", ["BadWord", "MissingTag", "OperatorMessage"]));
 
-        var client = new MitsubishiRx(new MitsubishiClientOptions(
+        var client = new MitsubishiRx(
+            new MitsubishiClientOptions(
             Host: "127.0.0.1",
             Port: 5034,
             FrameType: MitsubishiFrameType.ThreeE,
@@ -23,7 +35,7 @@ public sealed class MitsubishiTagGroupTests
             TransportKind: MitsubishiTransportKind.Tcp,
             Route: MitsubishiRoute.Default,
             MonitoringTimer: 0x0010),
-            new FakeTransport(Array.Empty<byte[]>()),
+            new FakeTransport([]),
             Scheduler.Immediate)
         {
             TagDatabase = database,
@@ -37,6 +49,8 @@ public sealed class MitsubishiTagGroupTests
         await Assert.That(result.ErrList.Any(static err => err.Contains("Length", StringComparison.OrdinalIgnoreCase))).IsTrue();
     }
 
+    /// <summary>Executes the ReadTagGroupSnapshotAsyncReturnsTypedValuesInGroupOrder operation.</summary>
+    /// <returns>The ReadTagGroupSnapshotAsyncReturnsTypedValuesInGroupOrder operation result.</returns>
     [Test]
     public async Task ReadTagGroupSnapshotAsyncReturnsTypedValuesInGroupOrder()
     {
@@ -57,7 +71,8 @@ public sealed class MitsubishiTagGroupTests
         ]);
         database.AddGroup(new MitsubishiTagGroupDefinition("Line1", ["SignedTemp", "TotalCount", "OperatorMessage", "PumpRunning"]));
 
-        var client = new MitsubishiRx(new MitsubishiClientOptions(
+        var client = new MitsubishiRx(
+            new MitsubishiClientOptions(
             Host: "127.0.0.1",
             Port: 5035,
             FrameType: MitsubishiFrameType.ThreeE,
@@ -75,20 +90,21 @@ public sealed class MitsubishiTagGroupTests
 
         await Assert.That(result.IsSucceed).IsTrue();
         await Assert.That(result.Value!.GroupName).IsEqualTo("Line1");
-        await Assert.That(result.Value.TagNames).IsEquivalentTo(new[] { "SignedTemp", "TotalCount", "OperatorMessage", "PumpRunning" });
+        await Assert.That(result.Value.TagNames).IsEquivalentTo([ "SignedTemp", "TotalCount", "OperatorMessage", "PumpRunning"]);
         await Assert.That(result.Value.GetRequired<short>("SignedTemp")).IsEqualTo((short)-100);
         await Assert.That(result.Value.GetRequired<uint>("TotalCount")).IsEqualTo(0x12345678u);
         await Assert.That(result.Value.GetRequired<string>("OperatorMessage")).IsEqualTo("OK!");
-        await Assert.That(result.Value.GetRequired<bool>("PumpRunning")).IsEqualTo(true);
-        await Assert.That(transport.Requests.Select(static request => request.Description).ToArray()).IsEquivalentTo(new[]
-        {
+        await Assert.That(result.Value.GetRequired<bool>("PumpRunning")).IsTrue();
+        await Assert.That(transport.Requests.Select(static request => request.Description).ToArray()).IsEquivalentTo([
             "Read words D700",
             "Read words D400",
             "Read words D600",
             "Read bits M10",
-        });
+        ]);
     }
 
+    /// <summary>Executes the ReadTagGroupSnapshotAsyncReturnsScaledEngineeringValuesWhenConfigured operation.</summary>
+    /// <returns>The ReadTagGroupSnapshotAsyncReturnsScaledEngineeringValuesWhenConfigured operation result.</returns>
     [Test]
     public async Task ReadTagGroupSnapshotAsyncReturnsScaledEngineeringValuesWhenConfigured()
     {
@@ -103,7 +119,8 @@ public sealed class MitsubishiTagGroupTests
         ]);
         database.AddGroup(new MitsubishiTagGroupDefinition("Thermals", ["HeadTemp"]));
 
-        var client = new MitsubishiRx(new MitsubishiClientOptions(
+        var client = new MitsubishiRx(
+            new MitsubishiClientOptions(
             Host: "127.0.0.1",
             Port: 5036,
             FrameType: MitsubishiFrameType.ThreeE,

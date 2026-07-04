@@ -1,14 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive.Concurrency;
-using System.Reactive.Linq;
-using Microsoft.Reactive.Testing;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiTagDatabaseReloadTests type.</summary>
 public sealed class MitsubishiTagDatabaseReloadTests
 {
+    /// <summary>Executes the LoadAndValidateAppliesLoadedDatabaseWhenSchemaIsValid operation.</summary>
+    /// <returns>The LoadAndValidateAppliesLoadedDatabaseWhenSchemaIsValid operation result.</returns>
     [Test]
     public async Task LoadAndValidateAppliesLoadedDatabaseWhenSchemaIsValid()
     {
@@ -39,6 +45,8 @@ public sealed class MitsubishiTagDatabaseReloadTests
         }
     }
 
+    /// <summary>Executes the LoadAndValidateReturnsErrorsAndDoesNotReplaceExistingDatabaseWhenSchemaIsInvalid operation.</summary>
+    /// <returns>The LoadAndValidateReturnsErrorsAndDoesNotReplaceExistingDatabaseWhenSchemaIsInvalid operation result.</returns>
     [Test]
     public async Task LoadAndValidateReturnsErrorsAndDoesNotReplaceExistingDatabaseWhenSchemaIsInvalid()
     {
@@ -78,6 +86,8 @@ public sealed class MitsubishiTagDatabaseReloadTests
         }
     }
 
+    /// <summary>Executes the ObserveTagDatabaseReloadEmitsSuccessfulReloadsWhenSchemaChanges operation.</summary>
+    /// <returns>The ObserveTagDatabaseReloadEmitsSuccessfulReloadsWhenSchemaChanges operation result.</returns>
     [Test]
     public async Task ObserveTagDatabaseReloadEmitsSuccessfulReloadsWhenSchemaChanges()
     {
@@ -112,6 +122,8 @@ public sealed class MitsubishiTagDatabaseReloadTests
         }
     }
 
+    /// <summary>Executes the ObserveTagDatabaseReloadEmitsFailureForInvalidUpdateAndPreservesLastValidDatabase operation.</summary>
+    /// <returns>The ObserveTagDatabaseReloadEmitsFailureForInvalidUpdateAndPreservesLastValidDatabase operation result.</returns>
     [Test]
     public async Task ObserveTagDatabaseReloadEmitsFailureForInvalidUpdateAndPreservesLastValidDatabase()
     {
@@ -155,6 +167,9 @@ public sealed class MitsubishiTagDatabaseReloadTests
         }
     }
 
+    /// <summary>Executes the CreateClient operation.</summary>
+    /// <param name="scheduler">The scheduler parameter.</param>
+    /// <returns>The CreateClient operation result.</returns>
     private static MitsubishiRx CreateClient(IScheduler scheduler)
     {
         var options = new MitsubishiClientOptions(
@@ -170,6 +185,10 @@ public sealed class MitsubishiTagDatabaseReloadTests
         return new MitsubishiRx(options, new FakeTransport([]), scheduler);
     }
 
+    /// <summary>Executes the CreateDatabase operation.</summary>
+    /// <param name="tagName">The tagName parameter.</param>
+    /// <param name="address">The address parameter.</param>
+    /// <returns>The CreateDatabase operation result.</returns>
     private static MitsubishiTagDatabase CreateDatabase(string tagName, string address)
     {
         var database = new MitsubishiTagDatabase(
@@ -180,14 +199,21 @@ public sealed class MitsubishiTagDatabaseReloadTests
         return database;
     }
 
+    /// <summary>Executes the CreateTempPath operation.</summary>
+    /// <param name="extension">The extension parameter.</param>
+    /// <returns>The CreateTempPath operation result.</returns>
     private static string CreateTempPath(string extension)
         => Path.Combine(Path.GetTempPath(), $"mitsubishirx-reload-{Guid.NewGuid():N}.{extension}");
 
+    /// <summary>Executes the DeleteIfExists operation.</summary>
+    /// <param name="path">The path parameter.</param>
     private static void DeleteIfExists(string path)
     {
-        if (File.Exists(path))
+        if (!File.Exists(path))
         {
-            File.Delete(path);
+            return;
         }
+
+        File.Delete(path);
     }
 }

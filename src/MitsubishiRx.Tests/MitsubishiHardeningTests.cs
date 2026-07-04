@@ -1,12 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive.Concurrency;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiHardeningTests type.</summary>
 public sealed class MitsubishiHardeningTests
 {
+    /// <summary>Executes the RemoteRunAsyncEncodesAscii3EForceAndClearMode operation.</summary>
+    /// <returns>The RemoteRunAsyncEncodesAscii3EForceAndClearMode operation result.</returns>
     [Test]
     public async Task RemoteRunAsyncEncodesAscii3EForceAndClearMode()
     {
@@ -35,6 +43,8 @@ public sealed class MitsubishiHardeningTests
         await Assert.That(System.Text.Encoding.ASCII.GetString(transport.Requests[0].Payload)).IsEqualTo("500000FF03FF00000E00101001000000010001");
     }
 
+    /// <summary>Executes the RegisterMonitorAsyncEncodesAscii3EAddresses operation.</summary>
+    /// <returns>The RegisterMonitorAsyncEncodesAscii3EAddresses operation result.</returns>
     [Test]
     public async Task RegisterMonitorAsyncEncodesAscii3EAddresses()
     {
@@ -63,6 +73,8 @@ public sealed class MitsubishiHardeningTests
         await Assert.That(System.Text.Encoding.ASCII.GetString(transport.Requests[0].Payload)).IsEqualTo("500000FF03FF00001A0010080100000200000064D*000065D*");
     }
 
+    /// <summary>Executes the RandomReadWordsAsyncPreservesHexadecimalXyNotation operation.</summary>
+    /// <returns>The RandomReadWordsAsyncPreservesHexadecimalXyNotation operation result.</returns>
     [Test]
     public async Task RandomReadWordsAsyncPreservesHexadecimalXyNotation()
     {
@@ -89,6 +101,8 @@ public sealed class MitsubishiHardeningTests
         [0x02, 0x00, 0x10, 0x00, 0x00, 0x9C, 0x1F, 0x00]);
     }
 
+    /// <summary>Executes the ReadBlocksAsyncEncodesAscii3EBlockCounts operation.</summary>
+    /// <returns>The ReadBlocksAsyncEncodesAscii3EBlockCounts operation result.</returns>
     [Test]
     public async Task ReadBlocksAsyncEncodesAscii3EBlockCounts()
     {

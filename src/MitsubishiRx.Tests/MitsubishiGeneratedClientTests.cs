@@ -1,18 +1,31 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
 using System.Diagnostics;
 using System.IO.Compression;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-namespace MitsubishiRx.Tests;
+#if REACTIVE_SHIM
 
+namespace MitsubishiRx.Reactive.Tests;
+#else
+
+namespace MitsubishiRx.Tests;
+#endif
+
+/// <summary>Provides the MitsubishiGeneratedClientTests type.</summary>
 public sealed class MitsubishiGeneratedClientTests
 {
+    /// <summary>Stores the PackagePackGate field.</summary>
     private static readonly SemaphoreSlim PackagePackGate = new(1, 1);
+
+    /// <summary>Stores the _cachedPackedPackagePath field.</summary>
     private static string? _cachedPackedPackagePath;
 
+    /// <summary>Executes the IncrementalGeneratorEmitsTypedTagAndGroupClientSurface operation.</summary>
+    /// <returns>The IncrementalGeneratorEmitsTypedTagAndGroupClientSurface operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorEmitsTypedTagAndGroupClientSurface()
     {
@@ -43,6 +56,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -78,6 +92,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(generated.Contains("snapshot.GetRequired<ushort>(\"Mode\")")).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorOutputCompilesAndSupportsGeneratedExtensionUsage operation.</summary>
+    /// <returns>The IncrementalGeneratorOutputCompilesAndSupportsGeneratedExtensionUsage operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorOutputCompilesAndSupportsGeneratedExtensionUsage()
     {
@@ -109,11 +125,16 @@ public sealed class MitsubishiGeneratedClientTests
         using System.Threading.Tasks;
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
 
+        /// <summary>Provides the Usage type.</summary>
         internal static class Usage
         {
+            /// <summary>Executes the ExecuteAsync operation.</summary>
+            /// <param name="client">The client parameter.</param>
+            /// <returns>The ExecuteAsync operation result.</returns>
             public static async Task ExecuteAsync(global::MitsubishiRx.MitsubishiRx client)
             {
                 _ = client.Generated().Tags.MotorSpeed;
@@ -145,6 +166,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(result.Generated.Contains("public static GeneratedMitsubishiTagClient Generated(this global::MitsubishiRx.MitsubishiRx owner) => new(owner);")).IsTrue();
     }
 
+    /// <summary>Executes the ConsumerProjectReferencingPackedMitsubishiRxPackageBuildsGeneratedClientSurfaceAutomatically operation.</summary>
+    /// <returns>The ConsumerProjectReferencingPackedMitsubishiRxPackageBuildsGeneratedClientSurfaceAutomatically operation result.</returns>
     [Test]
     public async Task ConsumerProjectReferencingPackedMitsubishiRxPackageBuildsGeneratedClientSurfaceAutomatically()
     {
@@ -156,8 +179,8 @@ public sealed class MitsubishiGeneratedClientTests
         {
             string consumerDirectory = Path.Combine(tempDirectory, "consumer");
             string packageCacheDirectory = Path.Combine(tempDirectory, "packages");
-            Directory.CreateDirectory(consumerDirectory);
-            Directory.CreateDirectory(packageCacheDirectory);
+            _ = Directory.CreateDirectory(consumerDirectory);
+            _ = Directory.CreateDirectory(packageCacheDirectory);
             string consumerProjectPath = Path.Combine(consumerDirectory, "Consumer.csproj");
             string programPath = Path.Combine(consumerDirectory, "Program.cs");
 
@@ -182,11 +205,16 @@ public sealed class MitsubishiGeneratedClientTests
                 using System.Threading.Tasks;
                 using MitsubishiRx;
 
+                /// <summary>Provides the SchemaMarker type.</summary>
                 [MitsubishiTagClientSchema(@"{""tags"":[{""name"":""MotorSpeed"",""address"":""D100"",""dataType"":""Float""}],""groups"":[{""name"":""Line1"",""tagNames"":[""MotorSpeed""]}]}")]
                 internal sealed class SchemaMarker { }
 
+                /// <summary>Provides the Usage type.</summary>
                 internal static class Usage
                 {
+                    /// <summary>Executes the ExecuteAsync operation.</summary>
+                    /// <param name="client">The client parameter.</param>
+                    /// <returns>The ExecuteAsync operation result.</returns>
                     public static async Task ExecuteAsync(global::MitsubishiRx.MitsubishiRx client)
                     {
                         _ = client.Generated().Tags.MotorSpeed;
@@ -229,16 +257,20 @@ public sealed class MitsubishiGeneratedClientTests
         }
     }
 
+    /// <summary>Executes the MitsubishiRxPackageShouldContainGeneratorAnalyzerAsset operation.</summary>
+    /// <returns>The MitsubishiRxPackageShouldContainGeneratorAnalyzerAsset operation result.</returns>
     [Test]
     public async Task MitsubishiRxPackageShouldContainGeneratorAnalyzerAsset()
     {
         string packagePath = await PackMitsubishiRxPackageAsync();
 
-        using var package = ZipFile.OpenRead(packagePath);
+        await using var package = ZipFile.OpenRead(packagePath);
         bool hasAnalyzer = package.Entries.Any(static entry => entry.FullName.EndsWith("analyzers/dotnet/cs/MitsubishiRx.Generators.dll", StringComparison.OrdinalIgnoreCase));
         await Assert.That(hasAnalyzer).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorSanitizesInvalidIdentifiers operation.</summary>
+    /// <returns>The IncrementalGeneratorSanitizesInvalidIdentifiers operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorSanitizesInvalidIdentifiers()
     {
@@ -268,6 +300,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -279,6 +312,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(generated.Contains("public Line1OverviewGroup Line1Overview => new(_owner);")).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorOptionalSnapshotHelpersReturnNullWhenValuesAreMissingOrWrongType operation.</summary>
+    /// <returns>The IncrementalGeneratorOptionalSnapshotHelpersReturnNullWhenValuesAreMissingOrWrongType operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorOptionalSnapshotHelpersReturnNullWhenValuesAreMissingOrWrongType()
     {
@@ -300,6 +335,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(wrongMode.GetOptional<ushort>("Mode")).IsEqualTo(default(ushort));
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForDuplicateTagNames operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForDuplicateTagNames operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForDuplicateTagNames()
     {
@@ -316,6 +353,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -331,6 +369,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("MotorSpeed", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForUnknownGroupTagReference operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForUnknownGroupTagReference operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForUnknownGroupTagReference()
     {
@@ -348,6 +388,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -363,6 +404,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("MissingTag", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForUnsupportedDataType operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForUnsupportedDataType operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForUnsupportedDataType()
     {
@@ -378,6 +421,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -393,6 +437,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("Decimal128", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForSanitizedIdentifierCollisions operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForSanitizedIdentifierCollisions operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForSanitizedIdentifierCollisions()
     {
@@ -409,6 +455,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -424,6 +471,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("MotorSpeed", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForEmptyTagName operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForEmptyTagName operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForEmptyTagName()
     {
@@ -439,6 +488,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -454,6 +504,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("Tag name", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForEmptyGroupName operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForEmptyGroupName operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForEmptyGroupName()
     {
@@ -471,6 +523,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -486,6 +539,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("Group name", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForEmptyGroupMembership operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForEmptyGroupMembership operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForEmptyGroupMembership()
     {
@@ -503,6 +558,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -518,6 +574,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("Line1", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForDuplicateGroupNames operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForDuplicateGroupNames operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForDuplicateGroupNames()
     {
@@ -536,6 +594,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -551,6 +610,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("Line1", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForEmptyGroupTagReference operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForEmptyGroupTagReference operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForEmptyGroupTagReference()
     {
@@ -568,6 +629,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -583,6 +645,8 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("Line1", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the IncrementalGeneratorReportsDiagnosticForDuplicateGroupTagReference operation.</summary>
+    /// <returns>The IncrementalGeneratorReportsDiagnosticForDuplicateGroupTagReference operation result.</returns>
     [Test]
     public async Task IncrementalGeneratorReportsDiagnosticForDuplicateGroupTagReference()
     {
@@ -600,6 +664,7 @@ public sealed class MitsubishiGeneratedClientTests
         var source = $$"""
         using MitsubishiRx;
 
+        /// <summary>Provides the SchemaMarker type.</summary>
         [MitsubishiTagClientSchema({{ToLiteral(schema)}})]
         internal sealed class SchemaMarker { }
         """;
@@ -615,6 +680,9 @@ public sealed class MitsubishiGeneratedClientTests
         await Assert.That(diagnostics.Any(static d => d.GetMessage().Contains("MotorSpeed", StringComparison.Ordinal))).IsTrue();
     }
 
+    /// <summary>Executes the RunGenerator operation.</summary>
+    /// <param name="source">The source parameter.</param>
+    /// <returns>The RunGenerator operation result.</returns>
     private static string RunGenerator(string source)
     {
         var result = RunGeneratorCompilation(source);
@@ -632,6 +700,9 @@ public sealed class MitsubishiGeneratedClientTests
         return result.Generated;
     }
 
+    /// <summary>Executes the RunGeneratorCompilation operation.</summary>
+    /// <param name="source">The source parameter.</param>
+    /// <returns>The RunGeneratorCompilation operation result.</returns>
     private static (string Generated, IReadOnlyList<Diagnostic> Diagnostics) RunGeneratorCompilation(string source)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
@@ -643,9 +714,9 @@ public sealed class MitsubishiGeneratedClientTests
             .Cast<MetadataReference>()
             .ToList();
         AddReference(references, generatorAssembly.Location);
-        AddReference(references, typeof(global::MitsubishiRx.MitsubishiRx).Assembly.Location);
+        AddReference(references, typeof(MitsubishiRx).Assembly.Location);
         AddReference(references, typeof(System.Linq.Expressions.Expression).Assembly.Location);
-        AddReference(references, typeof(System.Reactive.Linq.Observable).Assembly.Location);
+        AddReference(references, typeof(LinqExtensions).Assembly.Location);
 
         var compilation = CSharpCompilation.Create(
             assemblyName: "GeneratorTests",
@@ -672,6 +743,9 @@ public sealed class MitsubishiGeneratedClientTests
         return (generated, diagnostics);
     }
 
+    /// <summary>Executes the AddReference operation.</summary>
+    /// <param name="references">The references parameter.</param>
+    /// <param name="assemblyLocation">The assemblyLocation parameter.</param>
     private static void AddReference(List<MetadataReference> references, string assemblyLocation)
     {
         if (references.OfType<PortableExecutableReference>().Any(reference => string.Equals(reference.FilePath, assemblyLocation, StringComparison.OrdinalIgnoreCase)))
@@ -682,16 +756,23 @@ public sealed class MitsubishiGeneratedClientTests
         references.Add(MetadataReference.CreateFromFile(assemblyLocation));
     }
 
+    /// <summary>Executes the ToLiteral operation.</summary>
+    /// <param name="value">The value parameter.</param>
+    /// <returns>The ToLiteral operation result.</returns>
     private static string ToLiteral(string value)
         => SymbolDisplay.FormatLiteral(value, quote: true);
 
+    /// <summary>Executes the CreateTemporaryDirectory operation.</summary>
+    /// <returns>The CreateTemporaryDirectory operation result.</returns>
     private static string CreateTemporaryDirectory()
     {
         string directory = Path.Combine(Path.GetTempPath(), $"mitsubishirx-generated-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(directory);
+        _ = Directory.CreateDirectory(directory);
         return directory;
     }
 
+    /// <summary>Executes the GetRepositoryRoot operation.</summary>
+    /// <returns>The GetRepositoryRoot operation result.</returns>
     private static string GetRepositoryRoot()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
@@ -709,6 +790,8 @@ public sealed class MitsubishiGeneratedClientTests
         throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 
+    /// <summary>Executes the PackMitsubishiRxPackageAsync operation.</summary>
+    /// <returns>The PackMitsubishiRxPackageAsync operation result.</returns>
     private static async Task<string> PackMitsubishiRxPackageAsync()
     {
         if (!string.IsNullOrWhiteSpace(_cachedPackedPackagePath) && File.Exists(_cachedPackedPackagePath))
@@ -751,10 +834,16 @@ public sealed class MitsubishiGeneratedClientTests
         }
         finally
         {
-            PackagePackGate.Release();
+            _ = PackagePackGate.Release();
         }
     }
 
+    /// <summary>Executes the RunDotNetAsync operation.</summary>
+    /// <param name="command">The command parameter.</param>
+    /// <param name="projectPath">The projectPath parameter.</param>
+    /// <param name="workingDirectory">The workingDirectory parameter.</param>
+    /// <param name="extraArguments">The extraArguments parameter.</param>
+    /// <returns>The RunDotNetAsync operation result.</returns>
     private static async Task<(int ExitCode, string Output)> RunDotNetAsync(string command, string projectPath, string workingDirectory, params string[] extraArguments)
     {
         var startInfo = new ProcessStartInfo
@@ -781,6 +870,8 @@ public sealed class MitsubishiGeneratedClientTests
         return (process.ExitCode, standardOutput + Environment.NewLine + standardError);
     }
 
+    /// <summary>Executes the TryDeleteDirectory operation.</summary>
+    /// <param name="path">The path parameter.</param>
     private static void TryDeleteDirectory(string path)
     {
         try
@@ -790,8 +881,13 @@ public sealed class MitsubishiGeneratedClientTests
                 Directory.Delete(path, recursive: true);
             }
         }
-        catch
+        catch (IOException ex)
         {
+            throw new InvalidOperationException($"Unable to delete temporary directory '{path}'.", ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new InvalidOperationException($"Unable to delete temporary directory '{path}'.", ex);
         }
     }
 }

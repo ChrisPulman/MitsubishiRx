@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <DefineConstants>$(DefineConstants);REACTIVE_SHIM</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\MitsubishiRx\**\*.cs" Exclude="..\MitsubishiRx\bin\**;..\MitsubishiRx\obj\**" Link="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ReactiveUI.Primitives.Reactive" Version="6.0.0" />
+    <PackageReference Include="ReactiveUI.Primitives.Extensions.Reactive" Version="6.0.0" />
+    <PackageReference Include="SerialPortRx.Reactive" Version="5.0.20" PrivateAssets="analyzers" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="ReactiveUI.Primitives.Disposables" />
+    <Using Include="ReactiveUI.Primitives.Extensions" />
+    <Using Include="ReactiveUI.Primitives.Signals" />
+    <Using Include="ReactiveUI.Primitives.Reactive" />
+    <Using Include="ReactiveUI.Primitives.Reactive.Concurrency" />
+    <Using Include="ReactiveUI.Primitives.Extensions.Reactive" />
+    <Using Include="ReactiveUI.Primitives.Extensions.Reactive.Operators" />
+    <Using Include="CP.IO.Ports.Reactive" />
+    <Using Include="System.Reactive.Concurrency.IScheduler" Alias="IScheduler" />
+    <Using Include="System.Reactive.Concurrency.Scheduler" Alias="Scheduler" />
+    <Using Include="System.Reactive.Unit" Alias="Unit" />
+    <Using Include="System.Reactive.Linq.Observable" Alias="Observable" />
+    <Using Include="System.Reactive.Disposables.Disposable" Alias="Disposable" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MitsubishiRx.Generators\MitsubishiRx.Generators.csproj"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="Analyzer"
+                      PrivateAssets="all"
+                      SetConfiguration="Configuration=$(Configuration)" />
+    <None Include="..\MitsubishiRx.Generators\bin\$(Configuration)\netstandard2.0\MitsubishiRx.Generators.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+  </ItemGroup>
+</Project>

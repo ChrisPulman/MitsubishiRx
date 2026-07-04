@@ -1,16 +1,24 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive.Concurrency;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiTagDatabaseTests type.</summary>
 public sealed class MitsubishiTagDatabaseTests
 {
+    /// <summary>Executes the CsvImportBuildsTagDatabaseAndPreservesMetadata operation.</summary>
+    /// <returns>The CsvImportBuildsTagDatabaseAndPreservesMetadata operation result.</returns>
     [Test]
     public async Task CsvImportBuildsTagDatabaseAndPreservesMetadata()
     {
-        var csv = """
+        const string csv = """
 Name,Address,DataType,Description,Scale,Offset,Notes
 MotorSpeed,D100,Word,Main spindle RPM,0.1,0,From commissioning sheet
 PumpRunning,M10,Bit,Coolant pump running,1,0,
@@ -32,6 +40,8 @@ HeadTemp,D200,Word,Head temperature,1.0,-10,Degrees C
         await Assert.That(pump.DataType).IsEqualTo("Bit");
     }
 
+    /// <summary>Executes the CsvImportNormalizesSupportedDataTypeValues operation.</summary>
+    /// <returns>The CsvImportNormalizesSupportedDataTypeValues operation result.</returns>
     [Test]
     public async Task CsvImportNormalizesSupportedDataTypeValues()
     {
@@ -47,6 +57,8 @@ RecipeNumber,D300,dword
         await Assert.That(database.GetRequired("RecipeNumber").DataType).IsEqualTo("DWord");
     }
 
+    /// <summary>Executes the CsvImportRejectsUnknownDataTypeValues operation.</summary>
+    /// <returns>The CsvImportRejectsUnknownDataTypeValues operation result.</returns>
     [Test]
     public async Task CsvImportRejectsUnknownDataTypeValues()
     {
@@ -64,6 +76,8 @@ MotorSpeed,D100,Boolean
         }
     }
 
+    /// <summary>Executes the ReadWordsByTagAsyncUsesResolvedTagAddress operation.</summary>
+    /// <returns>The ReadWordsByTagAsyncUsesResolvedTagAddress operation result.</returns>
     [Test]
     public async Task ReadWordsByTagAsyncUsesResolvedTagAddress()
     {
@@ -94,11 +108,13 @@ MotorSpeed,D100,Word,Main spindle RPM
         var result = await client.ReadWordsByTagAsync("MotorSpeed", 2);
 
         await Assert.That(result.IsSucceed).IsTrue();
-        await Assert.That(result.Value!.Select(static value => (int)value).ToArray()).IsEquivalentTo(new[] { 0x1234, 0x5678 });
+        await Assert.That(result.Value!.Select(static value => (int)value).ToArray()).IsEquivalentTo([ 0x1234, 0x5678]);
         await Assert.That(transport.Requests.Count).IsEqualTo(1);
         await Assert.That(transport.Requests[0].Description).IsEqualTo("Read words D100");
     }
 
+    /// <summary>Executes the ReadBitsByTagAsyncUsesResolvedTagAddress operation.</summary>
+    /// <returns>The ReadBitsByTagAsyncUsesResolvedTagAddress operation result.</returns>
     [Test]
     public async Task ReadBitsByTagAsyncUsesResolvedTagAddress()
     {
@@ -127,10 +143,12 @@ PumpRunning,M10,Bit,Coolant pump running
         var result = await client.ReadBitsByTagAsync("PumpRunning", 2);
 
         await Assert.That(result.IsSucceed).IsTrue();
-        await Assert.That(result.Value!).IsEquivalentTo(new[] { true, true });
+        await Assert.That(result.Value!).IsEquivalentTo([ true, true]);
         await Assert.That(transport.Requests[0].Description).IsEqualTo("Read bits M10");
     }
 
+    /// <summary>Executes the WriteWordsByTagAsyncUsesResolvedTagAddress operation.</summary>
+    /// <returns>The WriteWordsByTagAsyncUsesResolvedTagAddress operation result.</returns>
     [Test]
     public async Task WriteWordsByTagAsyncUsesResolvedTagAddress()
     {
@@ -171,6 +189,8 @@ MotorSpeed,D100,Word
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the WriteBitsByTagAsyncUsesResolvedTagAddress operation.</summary>
+    /// <returns>The WriteBitsByTagAsyncUsesResolvedTagAddress operation result.</returns>
     [Test]
     public async Task WriteBitsByTagAsyncUsesResolvedTagAddress()
     {
@@ -211,6 +231,8 @@ PumpRunning,M10,Bit
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the RandomReadWordsByTagAsyncUsesResolvedAddressesInRequestOrder operation.</summary>
+    /// <returns>The RandomReadWordsByTagAsyncUsesResolvedAddressesInRequestOrder operation result.</returns>
     [Test]
     public async Task RandomReadWordsByTagAsyncUsesResolvedAddressesInRequestOrder()
     {
@@ -248,10 +270,12 @@ RecipeNumber,D300,Word
 
         await Assert.That(baseline.IsSucceed).IsTrue();
         await Assert.That(result.IsSucceed).IsTrue();
-        await Assert.That(result.Value!.Select(static value => (int)value).ToArray()).IsEquivalentTo(new[] { 0x1234 });
+        await Assert.That(result.Value!.Select(static value => (int)value).ToArray()).IsEquivalentTo([ 0x1234]);
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the RandomWriteWordsByTagAsyncUsesResolvedAddressesInRequestOrder operation.</summary>
+    /// <returns>The RandomWriteWordsByTagAsyncUsesResolvedAddressesInRequestOrder operation result.</returns>
     [Test]
     public async Task RandomWriteWordsByTagAsyncUsesResolvedAddressesInRequestOrder()
     {
@@ -302,6 +326,8 @@ RecipeNumber,D300,Word
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the ReadDWordByTagAsyncReadsLittleEndianDoubleWord operation.</summary>
+    /// <returns>The ReadDWordByTagAsyncReadsLittleEndianDoubleWord operation result.</returns>
     [Test]
     public async Task ReadDWordByTagAsyncReadsLittleEndianDoubleWord()
     {
@@ -333,6 +359,8 @@ TotalCount,D400,DWord
         await Assert.That(result.Value).IsEqualTo(0x12345678u);
     }
 
+    /// <summary>Executes the WriteDWordByTagAsyncEncodesLittleEndianDoubleWord operation.</summary>
+    /// <returns>The WriteDWordByTagAsyncEncodesLittleEndianDoubleWord operation result.</returns>
     [Test]
     public async Task WriteDWordByTagAsyncEncodesLittleEndianDoubleWord()
     {
@@ -372,6 +400,8 @@ TotalCount,D400,DWord
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the ReadFloatByTagAsyncReadsLittleEndianSinglePrecisionValue operation.</summary>
+    /// <returns>The ReadFloatByTagAsyncReadsLittleEndianSinglePrecisionValue operation result.</returns>
     [Test]
     public async Task ReadFloatByTagAsyncReadsLittleEndianSinglePrecisionValue()
     {
@@ -403,6 +433,8 @@ ProcessValue,D500,Float
         await Assert.That(result.Value).IsEqualTo(12.5f);
     }
 
+    /// <summary>Executes the WriteFloatByTagAsyncEncodesLittleEndianSinglePrecisionValue operation.</summary>
+    /// <returns>The WriteFloatByTagAsyncEncodesLittleEndianSinglePrecisionValue operation result.</returns>
     [Test]
     public async Task WriteFloatByTagAsyncEncodesLittleEndianSinglePrecisionValue()
     {
@@ -442,6 +474,8 @@ ProcessValue,D500,Float
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the ReadScaledDoubleByTagAsyncAppliesScaleAndOffset operation.</summary>
+    /// <returns>The ReadScaledDoubleByTagAsyncAppliesScaleAndOffset operation result.</returns>
     [Test]
     public async Task ReadScaledDoubleByTagAsyncAppliesScaleAndOffset()
     {
@@ -473,6 +507,8 @@ HeadTemp,D200,Word,0.1,-10
         await Assert.That(result.Value).IsEqualTo(15.0d);
     }
 
+    /// <summary>Executes the WriteScaledDoubleByTagAsyncAppliesInverseScaleAndOffset operation.</summary>
+    /// <returns>The WriteScaledDoubleByTagAsyncAppliesInverseScaleAndOffset operation result.</returns>
     [Test]
     public async Task WriteScaledDoubleByTagAsyncAppliesInverseScaleAndOffset()
     {
@@ -512,6 +548,8 @@ HeadTemp,D200,Word,0.1,-10
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the ReadStringByTagAsyncDecodesPackedAsciiWords operation.</summary>
+    /// <returns>The ReadStringByTagAsyncDecodesPackedAsciiWords operation result.</returns>
     [Test]
     public async Task ReadStringByTagAsyncDecodesPackedAsciiWords()
     {
@@ -543,6 +581,8 @@ OperatorMessage,D600,String
         await Assert.That(result.Value).IsEqualTo("OK!");
     }
 
+    /// <summary>Executes the WriteStringByTagAsyncEncodesPackedAsciiWords operation.</summary>
+    /// <returns>The WriteStringByTagAsyncEncodesPackedAsciiWords operation result.</returns>
     [Test]
     public async Task WriteStringByTagAsyncEncodesPackedAsciiWords()
     {
@@ -582,6 +622,8 @@ OperatorMessage,D600,String
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the CsvImportPreservesExtendedSchemaColumnsAndNormalizesValues operation.</summary>
+    /// <returns>The CsvImportPreservesExtendedSchemaColumnsAndNormalizesValues operation result.</returns>
     [Test]
     public async Task CsvImportPreservesExtendedSchemaColumnsAndNormalizesValues()
     {
@@ -596,10 +638,12 @@ SignedTotal,D700,int32,2,utf8,items,true,bigendian
         await Assert.That(tag.Length).IsEqualTo(2);
         await Assert.That(tag.Encoding).IsEqualTo("Utf8");
         await Assert.That(tag.Units).IsEqualTo("items");
-        await Assert.That(tag.Signed).IsEqualTo(true);
+        await Assert.That(tag.Signed).IsTrue();
         await Assert.That(tag.ByteOrder).IsEqualTo("BigEndian");
     }
 
+    /// <summary>Executes the CsvImportRejectsUnsupportedByteOrderValues operation.</summary>
+    /// <returns>The CsvImportRejectsUnsupportedByteOrderValues operation result.</returns>
     [Test]
     public async Task CsvImportRejectsUnsupportedByteOrderValues()
     {
@@ -617,6 +661,8 @@ SignedTotal,D700,Int32,MiddleEndian
         }
     }
 
+    /// <summary>Executes the ReadInt16ByTagAsyncReadsTwosComplementWord operation.</summary>
+    /// <returns>The ReadInt16ByTagAsyncReadsTwosComplementWord operation result.</returns>
     [Test]
     public async Task ReadInt16ByTagAsyncReadsTwosComplementWord()
     {
@@ -648,6 +694,8 @@ SignedTemp,D700,Int16,true
         await Assert.That(result.Value).IsEqualTo((short)-100);
     }
 
+    /// <summary>Executes the WriteInt32ByTagAsyncHonorsBigEndianByteOrder operation.</summary>
+    /// <returns>The WriteInt32ByTagAsyncHonorsBigEndianByteOrder operation result.</returns>
     [Test]
     public async Task WriteInt32ByTagAsyncHonorsBigEndianByteOrder()
     {
@@ -687,6 +735,8 @@ SignedTotal,D700,Int32,BigEndian
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the ReadStringByTagAsyncWithoutExplicitLengthUsesTagLengthAndEncoding operation.</summary>
+    /// <returns>The ReadStringByTagAsyncWithoutExplicitLengthUsesTagLengthAndEncoding operation result.</returns>
     [Test]
     public async Task ReadStringByTagAsyncWithoutExplicitLengthUsesTagLengthAndEncoding()
     {
@@ -718,6 +768,8 @@ OperatorMessage,D600,String,2,Utf8
         await Assert.That(result.Value).IsEqualTo("Aé");
     }
 
+    /// <summary>Executes the WriteStringByTagAsyncWithoutExplicitLengthUsesTagLengthAndBigEndianByteOrder operation.</summary>
+    /// <returns>The WriteStringByTagAsyncWithoutExplicitLengthUsesTagLengthAndBigEndianByteOrder operation result.</returns>
     [Test]
     public async Task WriteStringByTagAsyncWithoutExplicitLengthUsesTagLengthAndBigEndianByteOrder()
     {
@@ -757,6 +809,8 @@ OperatorMessage,D600,String,1,Ascii,BigEndian
         await Assert.That(transport.Requests[0].Payload).IsEquivalentTo(rawTransport.Requests[0].Payload);
     }
 
+    /// <summary>Executes the ReadScaledDoubleByTagAsyncUsesSignedWordMetadata operation.</summary>
+    /// <returns>The ReadScaledDoubleByTagAsyncUsesSignedWordMetadata operation result.</returns>
     [Test]
     public async Task ReadScaledDoubleByTagAsyncUsesSignedWordMetadata()
     {

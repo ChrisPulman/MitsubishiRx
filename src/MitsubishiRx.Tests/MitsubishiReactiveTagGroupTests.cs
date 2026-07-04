@@ -1,16 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using Microsoft.Reactive.Testing;
-using ReactiveUI.Extensions;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiReactiveTagGroupTests type.</summary>
 public sealed class MitsubishiReactiveTagGroupTests
 {
+    /// <summary>Executes the ObserveTagGroupHeartbeatEmitsHeartbeatBetweenPolls operation.</summary>
+    /// <returns>The ObserveTagGroupHeartbeatEmitsHeartbeatBetweenPolls operation result.</returns>
     [Test]
     public async Task ObserveTagGroupHeartbeatEmitsHeartbeatBetweenPolls()
     {
@@ -63,6 +67,8 @@ public sealed class MitsubishiReactiveTagGroupTests
         await Assert.That(received[2].IsHeartbeat).IsTrue();
     }
 
+    /// <summary>Executes the ObserveTagGroupStaleMarksStreamWhenUpdatesGoQuiet operation.</summary>
+    /// <returns>The ObserveTagGroupStaleMarksStreamWhenUpdatesGoQuiet operation result.</returns>
     [Test]
     public async Task ObserveTagGroupStaleMarksStreamWhenUpdatesGoQuiet()
     {
@@ -107,6 +113,8 @@ public sealed class MitsubishiReactiveTagGroupTests
         await Assert.That(received[1].IsStale).IsTrue();
     }
 
+    /// <summary>Executes the ObserveTagGroupLatestUsesLatestCompletedSnapshot operation.</summary>
+    /// <returns>The ObserveTagGroupLatestUsesLatestCompletedSnapshot operation result.</returns>
     [Test]
     public async Task ObserveTagGroupLatestUsesLatestCompletedSnapshot()
     {
@@ -137,7 +145,7 @@ public sealed class MitsubishiReactiveTagGroupTests
             TagDatabase = database,
         };
 
-        var trigger = new Subject<Unit>();
+        var trigger = new Signal<Unit>();
         var received = new List<Responce<MitsubishiTagGroupSnapshot>>();
 
         using var subscription = client

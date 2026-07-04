@@ -1,14 +1,20 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive.Concurrency;
-using System.Reactive.Linq;
-using Microsoft.Reactive.Testing;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive.Tests;
+#else
 
 namespace MitsubishiRx.Tests;
+#endif
 
+/// <summary>Provides the MitsubishiTagDatabaseDiffTests type.</summary>
 public sealed class MitsubishiTagDatabaseDiffTests
 {
+    /// <summary>Executes the CompareToReportsAddedRemovedAndChangedTagsAndGroups operation.</summary>
+    /// <returns>The CompareToReportsAddedRemovedAndChangedTagsAndGroups operation result.</returns>
     [Test]
     public async Task CompareToReportsAddedRemovedAndChangedTagsAndGroups()
     {
@@ -36,6 +42,8 @@ public sealed class MitsubishiTagDatabaseDiffTests
         await Assert.That(diff.ChangedGroups[0].Name).IsEqualTo("Overview");
     }
 
+    /// <summary>Executes the PreviewTagDatabaseDiffReturnsChangesWithoutReplacingCurrentDatabase operation.</summary>
+    /// <returns>The PreviewTagDatabaseDiffReturnsChangesWithoutReplacingCurrentDatabase operation result.</returns>
     [Test]
     public async Task PreviewTagDatabaseDiffReturnsChangesWithoutReplacingCurrentDatabase()
     {
@@ -62,6 +70,8 @@ public sealed class MitsubishiTagDatabaseDiffTests
         }
     }
 
+    /// <summary>Executes the ObserveTagDatabaseDiffEmitsSemanticChangesAndAppliesSuccessfulReloads operation.</summary>
+    /// <returns>The ObserveTagDatabaseDiffEmitsSemanticChangesAndAppliesSuccessfulReloads operation result.</returns>
     [Test]
     public async Task ObserveTagDatabaseDiffEmitsSemanticChangesAndAppliesSuccessfulReloads()
     {
@@ -98,6 +108,8 @@ public sealed class MitsubishiTagDatabaseDiffTests
         }
     }
 
+    /// <summary>Executes the ObserveTagDatabaseDiffEmitsFailureAndPreservesLastValidDatabaseOnInvalidReload operation.</summary>
+    /// <returns>The ObserveTagDatabaseDiffEmitsFailureAndPreservesLastValidDatabaseOnInvalidReload operation result.</returns>
     [Test]
     public async Task ObserveTagDatabaseDiffEmitsFailureAndPreservesLastValidDatabaseOnInvalidReload()
     {
@@ -141,6 +153,9 @@ public sealed class MitsubishiTagDatabaseDiffTests
         }
     }
 
+    /// <summary>Executes the CreateClient operation.</summary>
+    /// <param name="scheduler">The scheduler parameter.</param>
+    /// <returns>The CreateClient operation result.</returns>
     private static MitsubishiRx CreateClient(IScheduler scheduler)
     {
         var options = new MitsubishiClientOptions(
@@ -156,6 +171,8 @@ public sealed class MitsubishiTagDatabaseDiffTests
         return new MitsubishiRx(options, new FakeTransport([]), scheduler);
     }
 
+    /// <summary>Executes the CreateCurrentDatabase operation.</summary>
+    /// <returns>The CreateCurrentDatabase operation result.</returns>
     private static MitsubishiTagDatabase CreateCurrentDatabase()
     {
         var database = new MitsubishiTagDatabase(
@@ -169,6 +186,8 @@ public sealed class MitsubishiTagDatabaseDiffTests
         return database;
     }
 
+    /// <summary>Executes the CreateUpdatedDatabase operation.</summary>
+    /// <returns>The CreateUpdatedDatabase operation result.</returns>
     private static MitsubishiTagDatabase CreateUpdatedDatabase()
     {
         var database = new MitsubishiTagDatabase(
@@ -182,14 +201,21 @@ public sealed class MitsubishiTagDatabaseDiffTests
         return database;
     }
 
+    /// <summary>Executes the CreateTempPath operation.</summary>
+    /// <param name="extension">The extension parameter.</param>
+    /// <returns>The CreateTempPath operation result.</returns>
     private static string CreateTempPath(string extension)
         => Path.Combine(Path.GetTempPath(), $"mitsubishirx-diff-{Guid.NewGuid():N}.{extension}");
 
+    /// <summary>Executes the DeleteIfExists operation.</summary>
+    /// <param name="path">The path parameter.</param>
     private static void DeleteIfExists(string path)
     {
-        if (File.Exists(path))
+        if (!File.Exists(path))
         {
-            File.Delete(path);
+            return;
         }
+
+        File.Delete(path);
     }
 }

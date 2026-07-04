@@ -1,14 +1,23 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
 using System.IO.Ports;
-using System.Reactive.Concurrency;
 using System.Text;
 
-namespace MitsubishiRx.Tests;
+#if REACTIVE_SHIM
 
+namespace MitsubishiRx.Reactive.Tests;
+#else
+
+namespace MitsubishiRx.Tests;
+#endif
+
+/// <summary>Provides the MitsubishiSerialOneCCompletionTests type.</summary>
 public sealed class MitsubishiSerialOneCCompletionTests
 {
+    /// <summary>Executes the RandomReadWordsAsyncSerial1CShouldUseBatchReadsAndReturnValues operation.</summary>
+    /// <returns>The RandomReadWordsAsyncSerial1CShouldUseBatchReadsAndReturnValues operation result.</returns>
     [Test]
     public async Task RandomReadWordsAsyncSerial1CShouldUseBatchReadsAndReturnValues()
     {
@@ -17,7 +26,7 @@ public sealed class MitsubishiSerialOneCCompletionTests
             BuildAsciiPayloadResponse("1234"),
             BuildAsciiPayloadResponse("5678"),
         ]);
-        var client = new global::MitsubishiRx.MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
+        var client = new MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
 
         var result = await client.RandomReadWordsAsync(["D100", "D300"]);
 
@@ -28,6 +37,8 @@ public sealed class MitsubishiSerialOneCCompletionTests
         await Assert.That(Encoding.ASCII.GetString(transport.Requests[1].Payload)).IsEqualTo(BuildAsciiRequest("00FFWR0D030001"));
     }
 
+    /// <summary>Executes the RandomWriteWordsAsyncSerial1CShouldUseBatchWrites operation.</summary>
+    /// <returns>The RandomWriteWordsAsyncSerial1CShouldUseBatchWrites operation result.</returns>
     [Test]
     public async Task RandomWriteWordsAsyncSerial1CShouldUseBatchWrites()
     {
@@ -36,7 +47,7 @@ public sealed class MitsubishiSerialOneCCompletionTests
             BuildAsciiAckResponse(),
             BuildAsciiAckResponse(),
         ]);
-        var client = new global::MitsubishiRx.MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
+        var client = new MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
 
         var result = await client.RandomWriteWordsAsync(
         [
@@ -50,6 +61,8 @@ public sealed class MitsubishiSerialOneCCompletionTests
         await Assert.That(Encoding.ASCII.GetString(transport.Requests[1].Payload)).IsEqualTo(BuildAsciiRequest("00FFWW0D0300015678"));
     }
 
+    /// <summary>Executes the ReadBlocksAsyncSerial1CShouldReadEachBlockAndReturnCombinedPayload operation.</summary>
+    /// <returns>The ReadBlocksAsyncSerial1CShouldReadEachBlockAndReturnCombinedPayload operation result.</returns>
     [Test]
     public async Task ReadBlocksAsyncSerial1CShouldReadEachBlockAndReturnCombinedPayload()
     {
@@ -58,7 +71,7 @@ public sealed class MitsubishiSerialOneCCompletionTests
             BuildAsciiPayloadResponse("11223344"),
             BuildAsciiPayloadResponse("101"),
         ]);
-        var client = new global::MitsubishiRx.MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
+        var client = new MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
 
         var result = await client.ReadBlocksAsync(CreateBlockRequest());
 
@@ -69,6 +82,8 @@ public sealed class MitsubishiSerialOneCCompletionTests
         await Assert.That(Encoding.ASCII.GetString(transport.Requests[1].Payload)).IsEqualTo(BuildAsciiRequest("00FFBR0M001003"));
     }
 
+    /// <summary>Executes the WriteBlocksAsyncSerial1CShouldWriteEachBlock operation.</summary>
+    /// <returns>The WriteBlocksAsyncSerial1CShouldWriteEachBlock operation result.</returns>
     [Test]
     public async Task WriteBlocksAsyncSerial1CShouldWriteEachBlock()
     {
@@ -77,7 +92,7 @@ public sealed class MitsubishiSerialOneCCompletionTests
             BuildAsciiAckResponse(),
             BuildAsciiAckResponse(),
         ]);
-        var client = new global::MitsubishiRx.MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
+        var client = new MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
 
         var result = await client.WriteBlocksAsync(CreateBlockRequest());
 
@@ -87,6 +102,8 @@ public sealed class MitsubishiSerialOneCCompletionTests
         await Assert.That(Encoding.ASCII.GetString(transport.Requests[1].Payload)).IsEqualTo(BuildAsciiRequest("00FFBW0M001003101"));
     }
 
+    /// <summary>Executes the MonitorAsyncSerial1CShouldRegisterAddressesAndExecuteAsBatchReads operation.</summary>
+    /// <returns>The MonitorAsyncSerial1CShouldRegisterAddressesAndExecuteAsBatchReads operation result.</returns>
     [Test]
     public async Task MonitorAsyncSerial1CShouldRegisterAddressesAndExecuteAsBatchReads()
     {
@@ -95,7 +112,7 @@ public sealed class MitsubishiSerialOneCCompletionTests
             BuildAsciiPayloadResponse("1234"),
             BuildAsciiPayloadResponse("5678"),
         ]);
-        var client = new global::MitsubishiRx.MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
+        var client = new MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
 
         var register = await client.RegisterMonitorAsync(["D100", "D300"]);
         var execute = await client.ExecuteMonitorAsync();
@@ -106,6 +123,8 @@ public sealed class MitsubishiSerialOneCCompletionTests
         await Assert.That(transport.Requests.Count).IsEqualTo(2);
     }
 
+    /// <summary>Executes the OneCSpecializedSerialRequestsShouldEncodeAndParseResponses operation.</summary>
+    /// <returns>The OneCSpecializedSerialRequestsShouldEncodeAndParseResponses operation result.</returns>
     [Test]
     public async Task OneCSpecializedSerialRequestsShouldEncodeAndParseResponses()
     {
@@ -121,7 +140,7 @@ public sealed class MitsubishiSerialOneCCompletionTests
             BuildAsciiAckResponse(),
             BuildAsciiPayloadResponse("CAFE"),
         ]);
-        var client = new global::MitsubishiRx.MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
+        var client = new MitsubishiRx(CreateSerialOptions(), transport, Scheduler.Immediate);
 
         var type = await client.ReadTypeNameAsync();
         var loopback = await client.LoopbackAsync(Encoding.ASCII.GetBytes("PING"));
@@ -154,6 +173,8 @@ public sealed class MitsubishiSerialOneCCompletionTests
         await Assert.That(Encoding.ASCII.GetString(transport.Requests[8].Payload)).IsEqualTo(BuildAsciiRequest("00FF1234ABCDBEEF"));
     }
 
+    /// <summary>Executes the CreateBlockRequest operation.</summary>
+    /// <returns>The CreateBlockRequest operation result.</returns>
     private static MitsubishiBlockRequest CreateBlockRequest()
         => new(
             WordBlocks:
@@ -165,6 +186,8 @@ public sealed class MitsubishiSerialOneCCompletionTests
                 new MitsubishiBitBlock(MitsubishiDeviceAddress.Parse("M10", XyAddressNotation.Octal), new bool[] { true, false, true }),
             ]);
 
+    /// <summary>Executes the CreateSerialOptions operation.</summary>
+    /// <returns>The CreateSerialOptions operation result.</returns>
     private static MitsubishiClientOptions CreateSerialOptions()
         => new(
             Host: "COM3",
@@ -186,21 +209,32 @@ public sealed class MitsubishiSerialOneCCompletionTests
                 PcNumber: 0xFF,
                 MessageWait: 0x00));
 
+    /// <summary>Executes the BuildAsciiPayloadResponse operation.</summary>
+    /// <param name="payload">The payload parameter.</param>
+    /// <returns>The BuildAsciiPayloadResponse operation result.</returns>
     private static byte[] BuildAsciiPayloadResponse(string payload)
     {
         var body = "\u000600" + payload;
         return Encoding.ASCII.GetBytes(body + ComputeChecksum(body));
     }
 
+    /// <summary>Executes the BuildAsciiAckResponse operation.</summary>
+    /// <returns>The BuildAsciiAckResponse operation result.</returns>
     private static byte[] BuildAsciiAckResponse()
     {
         const string Body = "\u000600FF";
         return Encoding.ASCII.GetBytes(Body + ComputeChecksum(Body));
     }
 
+    /// <summary>Executes the BuildAsciiRequest operation.</summary>
+    /// <param name="body">The body parameter.</param>
+    /// <returns>The BuildAsciiRequest operation result.</returns>
     private static string BuildAsciiRequest(string body)
         => "\u0005" + body + ComputeChecksum(body);
 
+    /// <summary>Executes the ComputeChecksum operation.</summary>
+    /// <param name="body">The body parameter.</param>
+    /// <returns>The ComputeChecksum operation result.</returns>
     private static string ComputeChecksum(string body)
         => (Encoding.ASCII.GetBytes(body).Aggregate(0, static (sum, value) => sum + value) & 0xFF).ToString("X2");
 }

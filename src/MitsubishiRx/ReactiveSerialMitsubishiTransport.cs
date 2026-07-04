@@ -1,19 +1,34 @@
-﻿// Copyright (c) Chris Pulman. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Copyright (c) 2022-2026 Chris Pulman. All rights reserved.
+// Chris Pulman licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for full license information.
 
-using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
+#if REACTIVE_SHIM
+
+namespace MitsubishiRx.Reactive;
+#else
 
 namespace MitsubishiRx;
+#endif
 
+/// <summary>Provides the ReactiveSerialMitsubishiTransport type.</summary>
 internal sealed class ReactiveSerialMitsubishiTransport : IMitsubishiTransport
 {
+    /// <summary>Stores the gate field.</summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
+
+    /// <summary>Stores the serialPort field.</summary>
     private ReactiveSerialPortAdapter? _serialPort;
+
+    /// <summary>Stores the options field.</summary>
     private MitsubishiClientOptions? _options;
 
+    /// <summary>Gets or sets the IsConnected property.</summary>
     public bool IsConnected => _serialPort?.IsOpen ?? false;
 
+    /// <summary>Executes the ConnectAsync operation.</summary>
+    /// <param name="options">The options parameter.</param>
+    /// <param name="cancellationToken">The cancellationToken parameter.</param>
+    /// <returns>The ConnectAsync operation result.</returns>
     public async ValueTask ConnectAsync(MitsubishiClientOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -30,10 +45,13 @@ internal sealed class ReactiveSerialMitsubishiTransport : IMitsubishiTransport
         }
         finally
         {
-            _gate.Release();
+            _ = _gate.Release();
         }
     }
 
+    /// <summary>Executes the DisconnectAsync operation.</summary>
+    /// <param name="cancellationToken">The cancellationToken parameter.</param>
+    /// <returns>The DisconnectAsync operation result.</returns>
     public async ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -43,10 +61,14 @@ internal sealed class ReactiveSerialMitsubishiTransport : IMitsubishiTransport
         }
         finally
         {
-            _gate.Release();
+            _ = _gate.Release();
         }
     }
 
+    /// <summary>Executes the ExchangeAsync operation.</summary>
+    /// <param name="request">The request parameter.</param>
+    /// <param name="cancellationToken">The cancellationToken parameter.</param>
+    /// <returns>The ExchangeAsync operation result.</returns>
     public async ValueTask<byte[]> ExchangeAsync(MitsubishiTransportRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -67,33 +89,29 @@ internal sealed class ReactiveSerialMitsubishiTransport : IMitsubishiTransport
             _serialPort.DiscardInBuffer();
             _serialPort.DiscardOutBuffer();
             _serialPort.Write(request.Payload);
-
             var timeout = _options.ResolvedTimeout;
-            return await _serialPort.ReceivedBytes
-                .Scan(new List<byte>(), static (state, chunk) =>
-                {
-                    state.AddRange(chunk);
-                    return state;
-                })
-                .Where(buffer => MitsubishiSerialProtocolEncoding.IsExpectedFrameComplete(_options, buffer.ToArray()))
-                .Select(static buffer => buffer.ToArray())
-                .Timeout(timeout)
-                .FirstAsync()
-                .ToTask(cancellationToken)
-                .ConfigureAwait(false);
+            var received = new List<byte>();
+            return await _serialPort.ReceivedBytes.Select(chunk =>
+            {
+                received.AddRange(chunk);
+                return received.ToArray();
+            }).Where(buffer => MitsubishiSerialProtocolEncoding.IsExpectedFrameComplete(_options, buffer)).Timeout(timeout).FirstAsync().ToTask(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            _gate.Release();
+            _ = _gate.Release();
         }
     }
 
+    /// <summary>Executes the Dispose operation.</summary>
     public void Dispose()
     {
         ClosePort();
         _gate.Dispose();
     }
 
+    /// <summary>Executes the DisposeAsync operation.</summary>
+    /// <returns>The DisposeAsync operation result.</returns>
     public ValueTask DisposeAsync()
     {
         ClosePort();
@@ -101,6 +119,9 @@ internal sealed class ReactiveSerialMitsubishiTransport : IMitsubishiTransport
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>Executes the EnsureConnectedCoreAsync operation.</summary>
+    /// <param name="cancellationToken">The cancellationToken parameter.</param>
+    /// <returns>The EnsureConnectedCoreAsync operation result.</returns>
     private async ValueTask EnsureConnectedCoreAsync(CancellationToken cancellationToken)
     {
         if (IsConnected)
@@ -114,17 +135,21 @@ internal sealed class ReactiveSerialMitsubishiTransport : IMitsubishiTransport
         }
 
         ClosePort();
-        _serialPort = new ReactiveSerialPortAdapter(_options.ResolvedSerial);
+        _serialPort = new(_options.ResolvedSerial);
         await _serialPort.OpenAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Executes the ClosePort operation.</summary>
     private void ClosePort()
     {
         try
         {
             _serialPort?.Dispose();
         }
-        catch
+        catch (ObjectDisposedException)
+        {
+        }
+        catch (InvalidOperationException)
         {
         }
         finally

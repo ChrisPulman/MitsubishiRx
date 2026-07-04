@@ -1,6 +1,10 @@
 # MitsubishiRx
 
-Reactive Mitsubishi PLC client for **MC Protocol / SLMP** in C# with **ReactiveUI.Extensions** and **SerialPortRx** integration.
+<div align="center">
+  <img src="Images/image-icon.png" style="width:25%;" />
+</div>
+
+Reactive Mitsubishi PLC client for **MC Protocol / SLMP** in C# with **ReactiveUI.Primitives**, **ReactiveUI.Primitives.Reactive**, **SerialPortRx**, and **SerialPortRx.Reactive** integration.
 
 This README is the **primary usage guide** for the library. It explains:
 - which PLC families, Ethernet frame types, and serial frame types are supported
@@ -16,10 +20,12 @@ Use this README as the complete in-repository documentation source:
 | Need | Start here |
 |---|---|
 | Install and choose package basics | [Install](#install) |
+| Choose between `MitsubishiRx` and `MitsubishiRx.Reactive` | [Package variants](#package-variants) |
 | Select PLC family, frame, transport, data encoding, serial format, or X/Y notation | [Supported PLC families and how to choose settings](#supported-plc-families-and-how-to-choose-settings) |
 | Configure `MitsubishiClientOptions` and `MitsubishiSerialOptions` | [Core configuration](#core-configuration) |
 | Connect, disconnect, and monitor connection state | [Connection lifecycle](#connection-lifecycle) |
 | Use every high-level PLC operation with C# examples | [Feature guide: every public operation](#feature-guide-every-public-operation) |
+| Generate strongly typed tag and group clients | [Generated typed client surface](#generated-typed-client-surface) |
 | Configure symbolic tags, typed helpers, groups, schema files, validation, hot reload, diffs, and rollout policies | [Tag database: use tag names instead of PLC addresses](#tag-database-use-tag-names-instead-of-plc-addresses) |
 | Match APIs to PLC families and endpoint types | [PLC-family-specific usage guidance](#plc-family-specific-usage-guidance) |
 | Find concise feature-to-method mapping | [Feature-to-API quick map](#feature-to-api-quick-map) |
@@ -34,6 +40,106 @@ Use this README as the complete in-repository documentation source:
 dotnet add package MitsubishiRx
 ```
 
+Use the `MitsubishiRx.Reactive` package when the consuming application is already using the `ReactiveUI.Primitives.Reactive` package family and wants the same Mitsubishi PLC API surface compiled against the reactive bridge packages:
+
+```bash
+dotnet add package MitsubishiRx.Reactive
+```
+
+Do not reference both packages from the same project unless you intentionally want both namespaces. They expose the same client type names under different namespaces.
+
+---
+
+## Package variants
+
+`MitsubishiRx` and `MitsubishiRx.Reactive` are built from the same source code. The reactive package is a linked-source shim that defines `REACTIVE_SHIM`, changes the public namespace to `MitsubishiRx.Reactive`, and swaps the project-level using aliases to the `ReactiveUI.Primitives.Reactive` and `SerialPortRx.Reactive` package families.
+
+| Package | Namespace | Target frameworks | Reactive package family | Serial package | Best fit |
+|---|---|---|---|---|---|
+| `MitsubishiRx` | `MitsubishiRx` | `net8.0`, `net9.0`, `net10.0`, `net11.0` | `ReactiveUI.Primitives`, `ReactiveUI.Primitives.Async`, `ReactiveUI.Primitives.Extensions` | `SerialPortRx` | Default package for applications using the lean ReactiveUI.Primitives stack. |
+| `MitsubishiRx.Reactive` | `MitsubishiRx.Reactive` | `net8.0`, `net9.0`, `net10.0`, `net11.0` | `ReactiveUI.Primitives.Reactive`, `ReactiveUI.Primitives.Extensions.Reactive` | `SerialPortRx.Reactive` | Applications using the System.Reactive-backed ReactiveUI.Primitives reactive bridge packages. |
+
+The API concepts are intentionally the same across both packages:
+
+| Concept | `MitsubishiRx` type | `MitsubishiRx.Reactive` type |
+|---|---|---|
+| Client | `MitsubishiRx.MitsubishiRx` | `MitsubishiRx.Reactive.MitsubishiRx` |
+| Options | `MitsubishiRx.MitsubishiClientOptions` | `MitsubishiRx.Reactive.MitsubishiClientOptions` |
+| Tag database | `MitsubishiRx.MitsubishiTagDatabase` | `MitsubishiRx.Reactive.MitsubishiTagDatabase` |
+| Response envelope | `MitsubishiRx.Responce<T>` | `MitsubishiRx.Reactive.Responce<T>` |
+| Reactive value envelope | `MitsubishiRx.MitsubishiReactiveValue<T>` | `MitsubishiRx.Reactive.MitsubishiReactiveValue<T>` |
+| Write pipeline | `MitsubishiRx.MitsubishiReactiveWritePipeline<TPayload>` | `MitsubishiRx.Reactive.MitsubishiReactiveWritePipeline<TPayload>` |
+| Custom transport | `MitsubishiRx.IMitsubishiTransport` | `MitsubishiRx.Reactive.IMitsubishiTransport` |
+
+Every feature shown in this README works with both packages unless a section explicitly calls out the source generator. The generated typed client currently emits the base `MitsubishiRx` namespace, so use the runtime tag, group, polling, and write-pipeline APIs for `MitsubishiRx.Reactive` projects.
+
+### Same feature, different namespace
+
+Most code changes are limited to the namespace import and the fully qualified client name when you need one.
+
+```csharp
+using MitsubishiRx;
+
+var options = new MitsubishiClientOptions(
+    Host: "192.168.0.10",
+    Port: 5000,
+    FrameType: MitsubishiFrameType.ThreeE,
+    DataCode: CommunicationDataCode.Binary,
+    TransportKind: MitsubishiTransportKind.Tcp);
+
+await using var client = new MitsubishiRx.MitsubishiRx(options);
+var words = await client.ReadWordsAsync("D100", 2);
+```
+
+Reactive package equivalent:
+
+```csharp
+using MitsubishiRx.Reactive;
+
+var options = new MitsubishiClientOptions(
+    Host: "192.168.0.10",
+    Port: 5000,
+    FrameType: MitsubishiFrameType.ThreeE,
+    DataCode: CommunicationDataCode.Binary,
+    TransportKind: MitsubishiTransportKind.Tcp);
+
+await using var client = new MitsubishiRx.Reactive.MitsubishiRx(options);
+var words = await client.ReadWordsAsync("D100", 2);
+```
+
+### Reactive package scheduler and trigger types
+
+Both packages expose `IObservable<T>` APIs. The project files use using aliases so the shared source stays the same, but the compiled scheduler and unit trigger types differ by package:
+
+| API concept | `MitsubishiRx` | `MitsubishiRx.Reactive` |
+|---|---|---|
+| Scheduler constructor parameter | `ReactiveUI.Primitives.Concurrency.ISequencer` | `System.Reactive.Concurrency.IScheduler` |
+| Default scheduler | `ReactiveUI.Primitives.Concurrency.Sequencer.Default` | `System.Reactive.Concurrency.Scheduler.Default` |
+| Trigger unit for `ObserveWordsLatest` / `ObserveTagGroupLatest` | `ReactiveUI.Primitives.RxVoid` | `System.Reactive.Unit` |
+| Observable factories used by implementation | `ReactiveUI.Primitives.Signals.Signal` | `System.Reactive.Linq.Observable` |
+| Disposable factory used by implementation | `ReactiveUI.Primitives.Disposables.Scope` | `System.Reactive.Disposables.Disposable` |
+
+Reactive package trigger example:
+
+```csharp
+using MitsubishiRx.Reactive;
+using System.Reactive.Linq;
+
+IObservable<System.Reactive.Unit> trigger =
+    Observable.Interval(TimeSpan.FromSeconds(5)).Select(_ => System.Reactive.Unit.Default);
+
+await using var client = new MitsubishiRx.Reactive.MitsubishiRx(options);
+
+using var latest = client.ObserveWordsLatest("D100", 2, trigger)
+    .Subscribe(result =>
+    {
+        if (result.IsSucceed)
+        {
+            Console.WriteLine(string.Join(", ", result.Value!));
+        }
+    });
+```
+
 ---
 
 ## What this library provides
@@ -43,11 +149,11 @@ MitsubishiRx was refactored from a low-level socket wrapper into a protocol-awar
 - supports **1E**, **3E**, and **4E** Ethernet frame families
 - supports **1C**, **3C**, and **4C** serial frame families
 - supports **TCP**, **UDP**, and reactive **serial** transports
-- uses **SerialPortRx** for reactive serial communications
+- uses **SerialPortRx** or **SerialPortRx.Reactive** for reactive serial communications, depending on the selected package
 - supports **binary** and **ASCII** MC Protocol / SLMP packet encodings
 - supports direct device addressing and symbolic **tag-name-based** access
 - exposes high-level async APIs for reads, writes, remote control, monitor, block, random, loopback, memory, and diagnostics operations
-- exposes **ReactiveUI.Extensions**-based polling and health streams for reactive applications
+- exposes **ReactiveUI.Primitives**- or **ReactiveUI.Primitives.Reactive**-based polling and health streams for reactive applications
 - includes **TUnit** tests running on **Microsoft Testing Platform**
 
 ---
@@ -639,7 +745,7 @@ var raw = await client.ExecuteRawAsync(
 
 ## 13. Reactive polling and diagnostics
 
-Reactive features are built with **ReactiveUI.Extensions**.
+Reactive features are built with **ReactiveUI.Primitives**.
 
 ### Observe words
 
@@ -708,15 +814,15 @@ using var staleSub = client
 ### Triggered latest-only reads
 
 ```csharp
-using System.Reactive;
-using System.Reactive.Subjects;
+using ReactiveUI.Primitives;
+using ReactiveUI.Primitives.Signals;
 
-var trigger = new Subject<Unit>();
+var trigger = new Signal<RxVoid>();
 using var latestSub = client
     .ObserveWordsLatest("D100", 2, trigger)
     .Subscribe(result => Console.WriteLine(result.IsSucceed));
 
-trigger.OnNext(Unit.Default);
+trigger.OnNext(RxVoid.Default);
 ```
 
 ### Reactive tag-group polling
@@ -781,10 +887,10 @@ using var groupStale = client
 ### Triggered latest-only grouped reads
 
 ```csharp
-using System.Reactive;
-using System.Reactive.Subjects;
+using ReactiveUI.Primitives;
+using ReactiveUI.Primitives.Signals;
 
-var groupTrigger = new Subject<Unit>();
+var groupTrigger = new Signal<RxVoid>();
 using var latestGroup = client
     .ObserveTagGroupLatest("Line1Overview", groupTrigger)
     .Subscribe(result =>
@@ -795,7 +901,7 @@ using var latestGroup = client
         }
     });
 
-groupTrigger.OnNext(Unit.Default);
+groupTrigger.OnNext(RxVoid.Default);
 ```
 
 These grouped reactive APIs are useful for HMI/dashboard polling loops because they keep the application written against stable symbolic names instead of raw PLC addresses.
@@ -849,10 +955,10 @@ var setpointWrites = client.CreateReactiveTagWritePipeline<float>(
     coalescingWindow: TimeSpan.FromMilliseconds(100));
 
 using var writeResults = setpointWrites.Results.Subscribe(result =>
-    Console.WriteLine($"Write success={result.Response.IsSucceed} payload={result.Payload}"));
+    Console.WriteLine($"Write success={result.Success} target={result.Target} error={result.Error}"));
 
-setpointWrites.Enqueue(12.5f);
-setpointWrites.Enqueue(13.0f);
+setpointWrites.Post(12.5f);
+setpointWrites.Post(13.0f);
 ```
 
 Supported modes:
@@ -860,9 +966,55 @@ Supported modes:
 - `LatestWins`
 - `Coalescing`
 
+The same pipeline API is available from the reactive package by changing the namespace:
+
+```csharp
+using MitsubishiRx.Reactive;
+
+var setpointWrites = client.CreateReactiveTagWritePipeline<float>(
+    "Setpoint",
+    MitsubishiReactiveWriteMode.Coalescing,
+    coalescingWindow: TimeSpan.FromMilliseconds(250));
+
+using var writeResults = setpointWrites.Results.Subscribe(result =>
+    Console.WriteLine($"{result.Target}: {result.Success}"));
+
+setpointWrites.Post(42.0f);
+```
+
 ### Generated typed client surface
 
-You can attach schema JSON for the generator using `MitsubishiTagClientSchemaAttribute`, then use the generated typed facade from the client instance via the generated extension method. When a consuming project references the main `MitsubishiRx` package, the bundled analyzer automatically supplies the generator — no separate generator package reference is required.
+`MitsubishiRx.Generators` is the Roslyn incremental source generator bundled with the package. It turns a compile-time tag schema into a strongly typed facade over the normal runtime tag APIs.
+
+You do not normally reference `MitsubishiRx.Generators` directly. The `MitsubishiRx` package includes `MitsubishiRx.Generators.dll` under `analyzers/dotnet/cs`, so SDK-style consumer projects get the analyzer automatically:
+
+```bash
+dotnet add package MitsubishiRx
+```
+
+The `MitsubishiRx.Reactive` package also carries the analyzer asset, but the generator currently emits `namespace MitsubishiRx` and extends the base `global::MitsubishiRx.MitsubishiRx` client type. For `MitsubishiRx.Reactive` projects, use the runtime tag APIs (`ReadFloatByTagAsync`, `ReadTagGroupSnapshotAsync`, `ObserveReactiveTag<T>`, `CreateReactiveTagWritePipeline<T>`, and related members) until generator namespace support is added for the reactive shim.
+
+#### Generator feature summary
+
+| Feature | Generated API | Runtime API used |
+|---|---|---|
+| Schema marker | `MitsubishiTagClientSchemaAttribute` | Compile-time marker only |
+| Client entrypoint | `client.Generated()` | Wraps the existing `MitsubishiRx` instance |
+| Tag catalog | `client.Generated().Tags.<TagName>` | Per-tag generated client |
+| Group catalog | `client.Generated().Groups.<GroupName>` | Per-group generated client |
+| Typed tag reads | `ReadAsync(CancellationToken)` | Typed `Read...ByTagAsync` helpers |
+| Typed tag writes | `WriteAsync(value, CancellationToken)` | Typed `Write...ByTagAsync` helpers |
+| Typed tag observation | `Observe(pollInterval, minimumUpdateSpacing)` | `ObserveReactiveTag<T>` |
+| Typed group reads | `ReadAsync(CancellationToken)` | `ReadTagGroupSnapshotAsync` plus generated required mapping |
+| Optional group reads | `ReadOptionalAsync(CancellationToken)` | `ReadTagGroupSnapshotAsync` plus generated optional mapping |
+| Typed group writes | `WriteAsync(TSnapshot, CancellationToken)` | `WriteTagGroupSnapshotAsync` |
+| Typed group observation | `Observe(...)` / `ObserveOptional(...)` | `ObserveReactiveTagGroup` plus generated projection |
+| Snapshot helpers | `FromSnapshot`, `TryFromSnapshot`, `ToSnapshot`, `MapReactive`, `MapReactiveOptional` | Converts between runtime and generated snapshot shapes |
+| Compile-time validation | `MRTXGEN001` through `MRTXGEN011` | Reports invalid schemas as compiler errors |
+
+#### Schema attribute and JSON contract
+
+Add `[MitsubishiTagClientSchema(...)]` to a class or assembly. The constructor takes one compile-time string value. Class-level usage:
 
 ```csharp
 using MitsubishiRx;
@@ -882,44 +1034,253 @@ using MitsubishiRx;
 internal sealed class PlcSchema;
 ```
 
+Assembly-level usage:
+
 ```csharp
-var speed = await client.Generated().Tags.MotorSpeed.ReadAsync();
-await client.Generated().Tags.Mode.WriteAsync(2);
+using MitsubishiRx;
 
-using var generatedTagSub = client.Generated().Tags.MotorSpeed.Observe(TimeSpan.FromMilliseconds(250))
-    .Subscribe(value => Console.WriteLine(value.Value));
+[assembly: MitsubishiTagClientSchema(
+    """
+    {
+      "tags": [
+        { "name": "MotorSpeed", "dataType": "Float" },
+        { "name": "Mode", "dataType": "UInt16" },
+        { "name": "PumpRunning", "dataType": "Bit" }
+      ],
+      "groups": [
+        { "name": "Line1", "tagNames": ["MotorSpeed", "Mode", "PumpRunning"] }
+      ]
+    }
+    """)]
+```
 
+Generator schema fields:
+
+| JSON field | Required | Meaning |
+|---|---:|---|
+| `tags` | No | Array of tag entries exposed under `client.Generated().Tags`. |
+| `tags[].name` | Yes | Runtime tag name and generated identifier source. It must match a tag in `client.TagDatabase` at runtime. |
+| `tags[].dataType` | No | Generated .NET type and runtime helper selection. Missing or `null` defaults to `UInt16` / `ushort`. |
+| `groups` | No | Array of group entries exposed under `client.Generated().Groups`. |
+| `groups[].name` | Yes | Runtime group name and generated identifier source. It must match a group in `client.TagDatabase` at runtime. |
+| `groups[].tagNames` | Yes | Ordered tag names used to build the generated snapshot record. |
+
+The generator ignores extra schema properties such as `address`, `description`, `scale`, `offset`, `units`, `length`, and `byteOrder`. Keep those in the runtime `MitsubishiTagDatabase`; generated clients call the normal tag APIs by name, and the runtime database supplies addresses, scaling, string length, byte order, and other PLC metadata.
+
+`MitsubishiTagClientSchemaAttribute` targets assemblies and classes, allows multiple attributes, and is not inherited. Current generation uses the first collected non-empty schema value, so prefer one authoritative schema attribute per consuming project.
+
+#### Supported generated data types
+
+Use the casing shown in this table. Schema validation is case-insensitive, but the current generated API mapping is matched with these canonical names.
+
+| Schema `dataType` | Generated .NET type | Read method | Write method |
+|---|---|---|---|
+| missing / `null` | `ushort` | `ReadUInt16ByTagAsync` | `WriteUInt16ByTagAsync` |
+| `Word` | `ushort` | `ReadUInt16ByTagAsync` | `WriteUInt16ByTagAsync` |
+| `UInt16` | `ushort` | `ReadUInt16ByTagAsync` | `WriteUInt16ByTagAsync` |
+| `Int16` | `short` | `ReadInt16ByTagAsync` | `WriteInt16ByTagAsync` |
+| `Int32` | `int` | `ReadInt32ByTagAsync` | `WriteInt32ByTagAsync` |
+| `DWord` | `uint` | `ReadDWordByTagAsync` | `WriteDWordByTagAsync` |
+| `UInt32` | `uint` | `ReadDWordByTagAsync` | `WriteDWordByTagAsync` |
+| `Float` | `float` | `ReadFloatByTagAsync` | `WriteFloatByTagAsync` |
+| `String` | `string` | `ReadStringByTagAsync` | `WriteStringByTagAsync` |
+| `Bit` | `bool` | `ReadGeneratedBitTagAsync` | `WriteGeneratedBitTagAsync` |
+
+#### Generated client entrypoint and catalogs
+
+```csharp
+GeneratedMitsubishiTagClient generated = client.Generated();
+
+var tags = generated.Tags;
+var groups = generated.Groups;
+```
+
+Generated property names are sanitized from schema names:
+
+| Schema name | Generated identifier |
+|---|---|
+| `MotorSpeed` | `MotorSpeed` |
+| `Motor Speed` | `MotorSpeed` |
+| `Line 1 Overview` | `Line1Overview` |
+| `9Mode` | `_9Mode` |
+
+If two names sanitize to the same identifier, the generator reports `MRTXGEN005`.
+
+#### Generated tag clients
+
+For each schema tag, the generator emits a property under `Tags` and a sealed tag client type:
+
+```csharp
+var motorSpeed = client.Generated().Tags.MotorSpeed;
+
+Responce<float> read = await motorSpeed.ReadAsync();
+if (read.IsSucceed)
+{
+    Console.WriteLine($"Motor speed: {read.Value} rpm");
+}
+
+Responce write = await motorSpeed.WriteAsync(123.4f);
+Console.WriteLine(write.IsSucceed ? "Speed written" : write.Err);
+```
+
+Generated tag client API:
+
+| API | Signature | Purpose |
+|---|---|---|
+| `ReadAsync` | `Task<Responce<T>> ReadAsync(CancellationToken cancellationToken = default)` | Reads the runtime tag by name using the generated .NET type. |
+| `WriteAsync` | `Task<Responce> WriteAsync(T value, CancellationToken cancellationToken = default)` | Writes the runtime tag by name using the generated .NET type. |
+| `Observe` | `IObservable<MitsubishiReactiveValue<T>> Observe(TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Polls the runtime tag and emits quality envelopes. |
+
+Tag observation example:
+
+```csharp
+using var generatedTagSub = client.Generated().Tags.MotorSpeed
+    .Observe(TimeSpan.FromMilliseconds(250))
+    .Subscribe(value =>
+    {
+        if (value.Quality == MitsubishiReactiveQuality.Good)
+        {
+            Console.WriteLine(value.Value);
+        }
+    });
+```
+
+Generated tags still require `client.TagDatabase` to contain matching tag names at runtime:
+
+```csharp
+client.TagDatabase = MitsubishiTagDatabase.FromJson("""
+{
+  "tags": [
+    { "name": "MotorSpeed", "address": "D100", "dataType": "Float" },
+    { "name": "Mode", "address": "D102", "dataType": "UInt16" },
+    { "name": "PumpRunning", "address": "M10", "dataType": "Bit" }
+  ],
+  "groups": [
+    { "name": "Line1", "tagNames": ["MotorSpeed", "Mode", "PumpRunning"] }
+  ]
+}
+""");
+```
+
+#### Generated group clients and snapshots
+
+For each schema group, the generator emits a group property under `Groups`, a sealed group client type, and a partial snapshot record named `<GroupName>Snapshot`. For the `Line1` schema above, the snapshot shape is:
+
+```csharp
+public sealed partial record Line1Snapshot(float MotorSpeed, ushort Mode, bool PumpRunning);
+```
+
+Read and write a generated group snapshot:
+
+```csharp
 var line1 = await client.Generated().Groups.Line1.ReadAsync();
-Console.WriteLine(line1.Value?.Mode);
+if (line1.Value is not null)
+{
+    Console.WriteLine($"Mode={line1.Value.Mode}");
+
+    var updated = line1.Value with { Mode = 2 };
+    await client.Generated().Groups.Line1.WriteAsync(updated);
+}
+```
+
+Generated group client API:
+
+| API | Signature | Purpose |
+|---|---|---|
+| `ReadAsync` | `Task<Responce<TSnapshot>> ReadAsync(CancellationToken cancellationToken = default)` | Reads the runtime group and maps all values through `TSnapshot.FromSnapshot`. |
+| `ReadOptionalAsync` | `Task<Responce<TSnapshot?>> ReadOptionalAsync(CancellationToken cancellationToken = default)` | Reads the runtime group and returns `null` when values are missing or wrong-typed. |
+| `WriteAsync` | `Task<Responce> WriteAsync(TSnapshot value, CancellationToken cancellationToken = default)` | Converts the generated snapshot to `MitsubishiTagGroupSnapshot` and writes it through `WriteTagGroupSnapshotAsync`. |
+| `Observe` | `IObservable<MitsubishiReactiveValue<TSnapshot>> Observe(TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Observes the runtime group and maps each value to the generated snapshot type. |
+| `ObserveOptional` | `IObservable<MitsubishiReactiveValue<TSnapshot?>> ObserveOptional(TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Observes the runtime group and emits nullable generated snapshots when values are incomplete or mismatched. |
+
+Optional read and group observation examples:
+
+```csharp
+var optionalLine1 = await client.Generated().Groups.Line1.ReadOptionalAsync();
+Console.WriteLine(optionalLine1.Value?.Mode);
 
 using var generatedGroupSub = client.Generated().Groups.Line1.Observe(TimeSpan.FromSeconds(1))
     .Subscribe(value => Console.WriteLine(value.Value?.Mode));
 
-var optionalLine1 = await client.Generated().Groups.Line1.ReadOptionalAsync();
-Console.WriteLine(optionalLine1.Value?.Mode);
-
 using var optionalGeneratedGroupSub = client.Generated().Groups.Line1.ObserveOptional(TimeSpan.FromSeconds(1))
     .Subscribe(value => Console.WriteLine(value.Value?.Mode));
-
-if (line1.Value is not null)
-{
-    await client.Generated().Groups.Line1.WriteAsync(line1.Value);
-}
 ```
 
-Generated accessors currently cover typed tag read/write/observe plus generated typed group snapshot read/write/observe for schema-defined tags and groups, with optional group read/observe variants when a snapshot may be incomplete. The main `MitsubishiRx` package bundles the analyzer automatically; consumers do **not** need a separate generator package reference.
+Generated snapshot helper API:
 
-The generator now also reports compile-time schema diagnostics for common authoring mistakes before any generated API is emitted:
-- `MRTXGEN002` — duplicate tag names
-- `MRTXGEN003` — groups referencing unknown tag names
-- `MRTXGEN004` — unsupported tag `dataType` values outside the currently generated set (`Bit`, `Word`, `DWord`, `Float`, `String`, `Int16`, `UInt16`, `Int32`, `UInt32`)
-- `MRTXGEN005` — tag or group names that collapse to the same generated identifier after sanitization
-- `MRTXGEN006` — empty tag names
-- `MRTXGEN007` — empty group names
-- `MRTXGEN008` — groups with no member tags
-- `MRTXGEN009` — duplicate group names
-- `MRTXGEN010` — empty tag references inside a group membership list
-- `MRTXGEN011` — duplicate tag references inside a group membership list
+| API | Signature | Purpose |
+|---|---|---|
+| `FromSnapshot` | `static TSnapshot FromSnapshot(MitsubishiTagGroupSnapshot snapshot)` | Required conversion using `snapshot.GetRequired<T>(tagName)`. Throws if a value is missing or has the wrong type. |
+| `TryFromSnapshot` | `static TSnapshot? TryFromSnapshot(MitsubishiTagGroupSnapshot? snapshot)` | Optional conversion. Returns `null` for missing snapshots, missing tag values, or invalid casts. |
+| `ToSnapshot` | `MitsubishiTagGroupSnapshot ToSnapshot()` | Converts the generated record back to a runtime group snapshot for writes. |
+| `MapReactive` | `static MitsubishiReactiveValue<TSnapshot> MapReactive(MitsubishiReactiveValue<MitsubishiTagGroupSnapshot> value)` | Converts a runtime reactive group envelope to a generated typed envelope. Mapping errors become `MitsubishiReactiveQuality.Error`. |
+| `MapReactiveOptional` | `static MitsubishiReactiveValue<TSnapshot?> MapReactiveOptional(MitsubishiReactiveValue<MitsubishiTagGroupSnapshot> value)` | Converts a runtime reactive group envelope to a nullable generated typed envelope. |
+
+```csharp
+MitsubishiTagGroupSnapshot runtimeSnapshot = line1.Value!.ToSnapshot();
+Line1Snapshot typed = Line1Snapshot.FromSnapshot(runtimeSnapshot);
+Line1Snapshot? optional = Line1Snapshot.TryFromSnapshot(runtimeSnapshot);
+```
+
+#### Compile-time diagnostics
+
+The generator validates schema authoring mistakes before generated API use reaches runtime. Diagnostics use category `MitsubishiRx.Generators` and severity `Error`.
+
+| ID | Title | Meaning | Fix |
+|---|---|---|---|
+| `MRTXGEN001` | Failed to generate Mitsubishi tag client | JSON parsing or generation failed unexpectedly. | Check that the schema string is valid JSON. |
+| `MRTXGEN002` | Duplicate generated tag name | Two tag entries have the same `name`, case-insensitively. | Keep each tag name unique. |
+| `MRTXGEN003` | Unknown generated group tag reference | A group `tagNames` entry does not match any schema tag. | Add the missing tag or remove/fix the group reference. |
+| `MRTXGEN004` | Unsupported generated tag data type | A tag uses a `dataType` outside the supported generator set. | Use `Bit`, `Word`, `DWord`, `Float`, `String`, `Int16`, `UInt16`, `Int32`, or `UInt32`. |
+| `MRTXGEN005` | Generated identifier collision | Different tag or group names sanitize to the same C# identifier. | Rename one schema item, for example avoid both `Motor Speed` and `Motor-Speed`. |
+| `MRTXGEN006` | Empty generated tag name | A tag name is missing, empty, or whitespace. | Supply a non-empty `tags[].name`. |
+| `MRTXGEN007` | Empty generated group name | A group name is missing, empty, or whitespace. | Supply a non-empty `groups[].name`. |
+| `MRTXGEN008` | Empty generated group membership | A group has no `tagNames`. | Add at least one tag reference or remove the group. |
+| `MRTXGEN009` | Duplicate generated group name | Two group entries have the same `name`, case-insensitively. | Keep each group name unique. |
+| `MRTXGEN010` | Empty generated group tag reference | A group contains an empty or whitespace tag reference. | Remove the empty entry or replace it with a valid tag name. |
+| `MRTXGEN011` | Duplicate generated group tag reference | A group references the same tag more than once, case-insensitively. | Keep each group membership list unique. |
+
+Invalid schema example:
+
+```csharp
+[MitsubishiTagClientSchema(
+    """
+    {
+      "tags": [
+        { "name": "Motor Speed", "dataType": "Float" },
+        { "name": "Motor-Speed", "dataType": "UInt16" }
+      ],
+      "groups": [
+        { "name": "Line1", "tagNames": ["MissingTag"] }
+      ]
+    }
+    """)]
+internal sealed class InvalidSchema;
+```
+
+This schema reports `MRTXGEN005` because both tag names sanitize to `MotorSpeed`, and `MRTXGEN003` because `Line1` references `MissingTag`.
+
+#### Generated-client startup checklist
+
+Use this pattern in production applications:
+
+```csharp
+client.TagDatabase = MitsubishiTagDatabase.Load("plc-tags.yaml");
+
+var validation = client.ValidateTagDatabase();
+if (!validation.IsSucceed)
+{
+    throw new InvalidOperationException(validation.Err);
+}
+
+await client.OpenAsync();
+
+var generated = client.Generated();
+var mode = await generated.Tags.Mode.ReadAsync();
+Console.WriteLine(mode.IsSucceed ? mode.Value : mode.Err);
+```
+
+The compile-time generator schema and runtime tag database should describe the same tag and group names. The generator gives strongly typed code; the runtime database still controls how those names map to PLC devices.
 
 ### Operation logs and sampled diagnostics
 
@@ -931,9 +1292,10 @@ using var logs = client.OperationLogs.Subscribe(log =>
 ```
 
 ```csharp
-using System.Reactive.Linq;
+using ReactiveUI.Primitives;
+using ReactiveUI.Primitives.Signals;
 
-var diagnosticTrigger = Observable.Interval(TimeSpan.FromSeconds(2)).Select(_ => new object());
+var diagnosticTrigger = Signal.Interval(TimeSpan.FromSeconds(2)).Select(_ => new object());
 using var diagnostics = client.SampleDiagnostics(diagnosticTrigger).Subscribe(log =>
 {
     Console.WriteLine(log.Description);
@@ -951,7 +1313,7 @@ using var health = client.ObserveConnectionHealth(TimeSpan.FromSeconds(10)).Subs
 
 ### Reactive operators used internally
 
-The library meaningfully uses these `ReactiveUI.Extensions` operators:
+The library meaningfully uses these `ReactiveUI.Primitives.Extensions` operators:
 - `RetryWithBackoff(...)`
 - `SelectAsyncSequential(...)`
 - `SelectLatestAsync(...)`
@@ -1834,6 +2196,8 @@ var serialEndpoint = new MitsubishiClientOptions(
 
 | Feature | API |
 |---|---|
+| Default package | `MitsubishiRx` namespace, `ReactiveUI.Primitives`, `SerialPortRx` |
+| Reactive bridge package | `MitsubishiRx.Reactive` namespace, `ReactiveUI.Primitives.Reactive`, `SerialPortRx.Reactive` |
 | Open transport | `OpenAsync()` / `Open()` |
 | Close transport | `CloseAsync()` / `Close()` |
 | Batch word read | `ReadWordsAsync(address, points)` |
@@ -1911,6 +2275,12 @@ var serialEndpoint = new MitsubishiClientOptions(
 | JSON schema export | `TagDatabase.ToJson()` |
 | YAML schema import | `MitsubishiTagDatabase.FromYaml(yaml)` |
 | YAML schema export | `TagDatabase.ToYaml()` |
+| Generator schema marker | `[MitsubishiTagClientSchema("""{ ... }""")]` |
+| Generated typed client root | `client.Generated()` |
+| Generated typed tag read/write/observe | `client.Generated().Tags.<Tag>.ReadAsync()` / `WriteAsync(...)` / `Observe(...)` |
+| Generated typed group read/write/observe | `client.Generated().Groups.<Group>.ReadAsync()` / `ReadOptionalAsync()` / `WriteAsync(...)` / `Observe(...)` / `ObserveOptional(...)` |
+| Generated snapshot conversion | `<Group>Snapshot.FromSnapshot(...)` / `TryFromSnapshot(...)` / `ToSnapshot()` |
+| Generator diagnostics | `MRTXGEN001` through `MRTXGEN011` |
 
 ### Serial coverage note
 
@@ -1918,7 +2288,7 @@ The quick map lists the full public API surface. Serial support covers `1C`, `3C
 
 ## Complete API reference
 
-This section is the authoritative quick reference for the public API exposed by the package. Earlier sections explain the recommended workflow and provide larger examples; this section gives signatures, return types, and when to use each member.
+This section is the authoritative quick reference for the public API exposed by `MitsubishiRx` and `MitsubishiRx.Reactive`. Earlier sections explain the recommended workflow and provide larger examples; this section gives signatures, return types, and when to use each member.
 
 ### API conventions
 
@@ -1929,6 +2299,37 @@ This section is the authoritative quick reference for the public API exposed by 
 - Address-based methods accept Mitsubishi device strings such as `D100`, `M10`, `X20`, `W10`, or `ZR200`.
 - Tag-based methods require `client.TagDatabase` to be assigned first.
 - Ethernet `1E` paths have a smaller command set than `3E` / `4E`. Serial `1C`, `3C`, and `4C` paths cover the public serial API surface; see the serial coverage notes above for the 1C composition behavior.
+
+### Package-specific API surface
+
+The runtime PLC, tag, reactive polling, hot stream, write pipeline, protocol, transport, and model APIs are compiled into both packages. Replace the namespace prefix when moving examples between packages.
+
+| Area | `MitsubishiRx` | `MitsubishiRx.Reactive` |
+|---|---|---|
+| Package id | `MitsubishiRx` | `MitsubishiRx.Reactive` |
+| Root namespace | `MitsubishiRx` | `MitsubishiRx.Reactive` |
+| Target frameworks | `net8.0`, `net9.0`, `net10.0`, `net11.0` | `net8.0`, `net9.0`, `net10.0`, `net11.0` |
+| Reactive dependencies | `ReactiveUI.Primitives`, `ReactiveUI.Primitives.Async`, `ReactiveUI.Primitives.Extensions` | `ReactiveUI.Primitives.Reactive`, `ReactiveUI.Primitives.Extensions.Reactive` |
+| Serial dependency | `SerialPortRx` | `SerialPortRx.Reactive` |
+| Scheduler constructor type | `ReactiveUI.Primitives.Concurrency.ISequencer?` | `System.Reactive.Concurrency.IScheduler?` |
+| Latest trigger unit type | `ReactiveUI.Primitives.RxVoid` | `System.Reactive.Unit` |
+| Source generator | Included as analyzer and emits `MitsubishiRx` generated clients | Included as analyzer, but generated typed clients currently target the base `MitsubishiRx` namespace |
+
+Package-specific construction examples:
+
+```csharp
+using MitsubishiRx;
+
+await using var client = new MitsubishiRx.MitsubishiRx(options);
+```
+
+```csharp
+using MitsubishiRx.Reactive;
+
+await using var client = new MitsubishiRx.Reactive.MitsubishiRx(options);
+```
+
+For `MitsubishiRx.Reactive`, prefer the runtime APIs in the tables below for tag reads, group reads, polling, hot observables, and write pipelines. Generated typed clients are documented separately because they currently target the base package namespace.
 
 ```csharp
 var result = await client.ReadWordsAsync("D100", 2);
@@ -2155,15 +2556,15 @@ if (snapshot.IsSucceed)
 |---|---|---|
 | `ObserveWords` | `IObservable<Responce<ushort[]>> ObserveWords(string address, int points, TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null, TimeSpan? pollTimeout = null)` | Polls words. |
 | `ObserveBits` | `IObservable<Responce<bool[]>> ObserveBits(string address, int points, TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Polls bits. |
-| `ObserveWordsHeartbeat` | `IObservable<IHeartbeat<Responce<ushort[]>>> ObserveWordsHeartbeat(string address, int points, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null, TimeSpan? pollTimeout = null)` | Word polling with heartbeat envelopes. |
-| `ObserveWordsStale` | `IObservable<IStale<Responce<ushort[]>>> ObserveWordsStale(string address, int points, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)` | Word polling with stale markers. |
+| `ObserveWordsHeartbeat` | `IObservable<Heartbeat<Responce<ushort[]>>> ObserveWordsHeartbeat(string address, int points, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null, TimeSpan? pollTimeout = null)` | Word polling with heartbeat envelopes. |
+| `ObserveWordsStale` | `IObservable<Stale<Responce<ushort[]>>> ObserveWordsStale(string address, int points, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)` | Word polling with stale markers. |
 | `ObserveWordsLatest` | `IObservable<Responce<ushort[]>> ObserveWordsLatest(string address, int points, IObservable<Unit> trigger)` | Latest-only triggered read. |
 | `ObserveTagGroup` | `IObservable<Responce<MitsubishiTagGroupSnapshot>> ObserveTagGroup(string groupName, TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Polls a tag group. |
-| `ObserveTagGroupHeartbeat` | `IObservable<IHeartbeat<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupHeartbeat(string groupName, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null)` | Group polling with heartbeat envelopes. |
-| `ObserveTagGroupStale` | `IObservable<IStale<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupStale(string groupName, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)` | Group polling with stale markers. |
+| `ObserveTagGroupHeartbeat` | `IObservable<Heartbeat<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupHeartbeat(string groupName, TimeSpan pollInterval, TimeSpan heartbeatAfter, TimeSpan? minimumUpdateSpacing = null)` | Group polling with heartbeat envelopes. |
+| `ObserveTagGroupStale` | `IObservable<Stale<Responce<MitsubishiTagGroupSnapshot>>> ObserveTagGroupStale(string groupName, TimeSpan pollInterval, TimeSpan staleAfter, TimeSpan? minimumUpdateSpacing = null)` | Group polling with stale markers. |
 | `ObserveTagGroupLatest` | `IObservable<Responce<MitsubishiTagGroupSnapshot>> ObserveTagGroupLatest(string groupName, IObservable<Unit> trigger)` | Latest-only triggered group read. |
 | `SampleDiagnostics` | `IObservable<MitsubishiOperationLog> SampleDiagnostics(IObservable<object> trigger)` | Samples latest operation diagnostics on trigger. |
-| `ObserveConnectionHealth` | `IObservable<IStale<MitsubishiConnectionState>> ObserveConnectionHealth(TimeSpan staleAfter)` | Detects stale connection-state updates. |
+| `ObserveConnectionHealth` | `IObservable<Stale<MitsubishiConnectionState>> ObserveConnectionHealth(TimeSpan staleAfter)` | Detects stale connection-state updates. |
 
 ```csharp
 using var sub = client.ObserveWords("D100", 2, TimeSpan.FromSeconds(1))
@@ -2193,6 +2594,36 @@ Factory helpers:
 | `MitsubishiReactiveValue.Heartbeat` | `static MitsubishiReactiveValue<T> Heartbeat<T>(MitsubishiReactiveValue<T> value, DateTimeOffset timestampUtc)` | Creates a heartbeat envelope. |
 | `MitsubishiReactiveValue.Stale` | `static MitsubishiReactiveValue<T> Stale<T>(MitsubishiReactiveValue<T> value, DateTimeOffset timestampUtc)` | Creates a stale envelope. |
 
+Base package example:
+
+```csharp
+using MitsubishiRx;
+
+using var speed = client.ObserveReactiveTag<float>("MotorSpeed", TimeSpan.FromMilliseconds(500))
+    .Subscribe(value =>
+    {
+        if (value.Quality == MitsubishiReactiveQuality.Good)
+        {
+            Console.WriteLine($"MotorSpeed={value.Value}");
+        }
+    });
+```
+
+Reactive package example:
+
+```csharp
+using MitsubishiRx.Reactive;
+
+using var overview = client.ObserveReactiveTagGroup("Line1Overview", TimeSpan.FromSeconds(1))
+    .Subscribe(value =>
+    {
+        if (value.Quality == MitsubishiReactiveQuality.Good && value.Value is not null)
+        {
+            Console.WriteLine(value.Value.GetRequired<float>("MotorSpeed"));
+        }
+    });
+```
+
 ### Reactive write pipeline APIs
 
 | API | Signature | Purpose |
@@ -2214,9 +2645,34 @@ Factory helpers:
 
 `MitsubishiReactiveWriteResult` fields: `Target`, `TimestampUtc`, `Mode`, `Success`, `Error`, `ErrorCode`, `Exception`.
 
+```csharp
+using MitsubishiRx.Reactive;
+
+var writes = client.CreateReactiveWordWritePipeline(
+    "D100",
+    MitsubishiReactiveWriteMode.Queued);
+
+using var results = writes.Results.Subscribe(result =>
+    Console.WriteLine($"{result.Target} success={result.Success} error={result.Error}"));
+
+writes.Post([100, 200, 300]);
+```
+
 ### Generated typed client APIs
 
-Add `[MitsubishiTagClientSchema("{...json...}")]` to a class or assembly. The analyzer generates an extension entrypoint:
+`MitsubishiRx.Generators` is bundled into the `MitsubishiRx` NuGet package as an analyzer asset at `analyzers/dotnet/cs/MitsubishiRx.Generators.dll`. Consumer projects reference `MitsubishiRx`; they normally do not reference `MitsubishiRx.Generators` directly.
+
+The generator currently emits code under `namespace MitsubishiRx` and references `global::MitsubishiRx.MitsubishiRx`, so generated typed clients are base-package APIs. `MitsubishiRx.Reactive` projects should use the runtime tag and group APIs directly.
+
+Attribute API:
+
+| API | Shape | Purpose |
+|---|---|---|
+| `MitsubishiTagClientSchemaAttribute` | `[AttributeUsage(AttributeTargets.Assembly \| AttributeTargets.Class, AllowMultiple = true, Inherited = false)]` | Marks a compilation with generator schema JSON. |
+| Constructor | `MitsubishiTagClientSchemaAttribute(string schemaJson)` | Accepts compile-time schema JSON. |
+| `SchemaJson` | `string SchemaJson { get; }` | Exposes the supplied schema JSON to the generator. |
+
+Generated root API:
 
 ```csharp
 var generated = client.Generated();
@@ -2226,6 +2682,13 @@ await generated.Tags.MotorSpeed.WriteAsync(123.4f);
 var line = await generated.Groups.Line1.ReadAsync();
 await generated.Groups.Line1.WriteAsync(line.Value!);
 ```
+
+| Generated API | Shape | Purpose |
+|---|---|---|
+| `GeneratedMitsubishiTagClientExtensions.Generated` | `GeneratedMitsubishiTagClient Generated(this global::MitsubishiRx.MitsubishiRx owner)` | Creates the generated facade over an existing client. |
+| `GeneratedMitsubishiTagClient` | `sealed partial class` with `Tags` and `Groups` | Root generated facade. |
+| `TagsClient` | `generated.Tags.<SanitizedTagName>` | Accesses generated per-tag clients. |
+| `GroupsClient` | `generated.Groups.<SanitizedGroupName>` | Accesses generated per-group clients. |
 
 Generated tag clients expose:
 
@@ -2245,7 +2708,27 @@ Generated group clients expose:
 | `Observe` | `IObservable<MitsubishiReactiveValue<TSnapshot>> Observe(TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Observes a generated typed group snapshot. |
 | `ObserveOptional` | `IObservable<MitsubishiReactiveValue<TSnapshot?>> ObserveOptional(TimeSpan pollInterval, TimeSpan? minimumUpdateSpacing = null)` | Observes an optional generated group snapshot. |
 
-Compile-time generator diagnostics:
+Generated group snapshot helpers expose:
+
+| Generated API | Shape | Purpose |
+|---|---|---|
+| `FromSnapshot` | `static TSnapshot FromSnapshot(MitsubishiTagGroupSnapshot snapshot)` | Required conversion from runtime snapshot to generated record. |
+| `TryFromSnapshot` | `static TSnapshot? TryFromSnapshot(MitsubishiTagGroupSnapshot? snapshot)` | Optional conversion from runtime snapshot to generated record. |
+| `ToSnapshot` | `MitsubishiTagGroupSnapshot ToSnapshot()` | Converts generated record to runtime snapshot for writes. |
+| `MapReactive` | `static MitsubishiReactiveValue<TSnapshot> MapReactive(MitsubishiReactiveValue<MitsubishiTagGroupSnapshot> value)` | Maps reactive runtime snapshots to generated typed envelopes. |
+| `MapReactiveOptional` | `static MitsubishiReactiveValue<TSnapshot?> MapReactiveOptional(MitsubishiReactiveValue<MitsubishiTagGroupSnapshot> value)` | Maps reactive runtime snapshots to optional generated typed envelopes. |
+
+Generated `dataType` mapping:
+
+| `dataType` | Generated type | Read/write helpers |
+|---|---|---|
+| missing / `Word` / `UInt16` | `ushort` | `ReadUInt16ByTagAsync` / `WriteUInt16ByTagAsync` |
+| `Int16` | `short` | `ReadInt16ByTagAsync` / `WriteInt16ByTagAsync` |
+| `Int32` | `int` | `ReadInt32ByTagAsync` / `WriteInt32ByTagAsync` |
+| `DWord` / `UInt32` | `uint` | `ReadDWordByTagAsync` / `WriteDWordByTagAsync` |
+| `Float` | `float` | `ReadFloatByTagAsync` / `WriteFloatByTagAsync` |
+| `String` | `string` | `ReadStringByTagAsync` / `WriteStringByTagAsync` |
+| `Bit` | `bool` | `ReadGeneratedBitTagAsync` / `WriteGeneratedBitTagAsync` |
 
 The implementation types behind this feature are `MitsubishiTagClientGenerator` and `MitsubishiTagClientEmitter`. The source-generator attribute exposes `SchemaJson` from `MitsubishiTagClientSchemaAttribute`; `Initialize(...)` wires the incremental generator. `SchemaModel`, `TagModel`, and `GroupModel` are generator-side schema parse models. Consumers normally only write the attribute and call generated extension methods, not the generator classes directly.
 
@@ -2285,6 +2768,9 @@ The implementation types behind this feature are `MitsubishiTagClientGenerator` 
 | `MitsubishiTagChange` | `Name`, `Previous`, `Current`, `ChangeKinds` | Tag diff item. |
 | `MitsubishiTagGroupChange` | `Name`, `Previous`, `Current`, `ChangeKinds` | Group diff item. |
 | `MitsubishiTagDatabaseDiff` | `AddedTags`, `RemovedTags`, `ChangedTags`, `AddedGroups`, `RemovedGroups`, `ChangedGroups`, `ChangeKinds`, `HasChanges`, `ChangeCount`, static `Empty` | Schema diff result. |
+| `MitsubishiReactiveValue<T>` | `Value`, `TimestampUtc`, `Quality`, `IsHeartbeat`, `IsStale`, `Source`, `Error`, `ErrorCode`, `Exception`; static `FromResponse`, `Heartbeat`, `Stale` | Quality envelope emitted by hot reactive APIs and generated observers. |
+| `MitsubishiReactiveWritePipeline<TPayload>` | `Mode`, `Results`, `Post(TPayload payload)`, `Dispose()` | Reactive write coordinator for raw word and typed tag writes. |
+| `MitsubishiReactiveWriteResult` | `Target`, `TimestampUtc`, `Mode`, `Success`, `Error`, `ErrorCode`, `Exception` | Result emitted after a reactive write pipeline attempts a write. |
 | `Responce` | `IsSucceed`, `Err`, `ErrCode`, `Exception`, `ErrList`, `Request`, `Response`, `Request2`, `Response2`, `TimeConsuming`, `InitialTime`, `SetErrInfo`, `AddErr2List` | Base response envelope. |
 | `Responce<T>` | `Value`; constructors from value/base response; `SetErrInfo` | Typed response envelope. |
 
