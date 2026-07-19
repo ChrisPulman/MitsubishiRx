@@ -21,7 +21,7 @@
     <PackageReference Include="ReactiveUI.Primitives.Reactive" Version="6.0.0" />
     <PackageReference Include="ReactiveUI.Primitives.Extensions.Reactive" Version="6.0.0" />
     <PackageReference Include="SerialPortRx.Reactive" Version="5.0.20" ExcludeAssets="analyzers" />
-    <PackageReference Include="TUnit" Version="1.5*" />
+    <PackageReference Include="TUnit" Version="1.6*" />
   </ItemGroup>
 
   <Target Name="RemoveSerialPortRxReactiveSourceGeneratorFromTests" BeforeTargets="CoreCompile">
