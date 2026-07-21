@@ -18,7 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\MitsubishiRx.Reactive\MitsubishiRx.Reactive.csproj" />
     <PackageReference Include="Microsoft.Reactive.Testing" Version="7.0.0" />
-    <PackageReference Include="ReactiveUI.Primitives.Reactive" Version="6.0.0" />
+    <PackageReference Include="ReactiveUI.Primitives.Reactive" Version="7.0.0" />
     <PackageReference Include="ReactiveUI.Primitives.Extensions.Reactive" Version="6.0.0" />
     <PackageReference Include="SerialPortRx.Reactive" Version="5.0.20" ExcludeAssets="analyzers" />
     <PackageReference Include="TUnit" Version="1.6*" />
