@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ReactiveUI.Primitives.Reactive" Version="6.0.0" />
+    <PackageReference Include="ReactiveUI.Primitives.Reactive" Version="7.0.0" />
     <PackageReference Include="ReactiveUI.Primitives.Extensions.Reactive" Version="6.0.0" />
     <PackageReference Include="SerialPortRx.Reactive" Version="5.0.20" PrivateAssets="analyzers" />
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
