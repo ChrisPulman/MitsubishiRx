@@ -1,3 +1,7 @@
+# The code in this repository is now no longer being maintained and will continue at [IoT-DriverCore](https://github.com/ChrisPulman/IoT-DriverCore)
+
+I need a centralised place to continue to develop the IoT drivers and often ended up creating the same code in multiple places due to the seperation.
+
 # MitsubishiRx
 
 <div align="center">
